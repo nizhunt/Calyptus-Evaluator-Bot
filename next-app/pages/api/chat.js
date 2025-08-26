@@ -1,6 +1,4 @@
-import OpenAI from "openai";
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+import { randomUUID } from 'crypto';
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -8,21 +6,34 @@ export default async function handler(req, res) {
   }
 
   const { assessmentQuestion, message } = req.body;
+  const webhookUrl = process.env.N8N_WEBHOOK_URL;
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: `You are an AI assistant helping with the assessment task: ${assessmentQuestion}`,
-        },
-        { role: "user", content: message },
-      ],
+    const sessionId = randomUUID();
+    const payload = {
+      text: message,
+      task: assessmentQuestion,
+      timestamp: new Date().toISOString(),
+      sessionId: sessionId,
+    };
+
+    const response = await fetch(webhookUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(payload),
     });
 
-    const response = completion.choices[0].message.content;
-    res.status(200).json({ response });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const botResponse = data.response || data.message || data.text || 'No response received';
+
+    res.status(200).json({ response: botResponse });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Error generating response" });

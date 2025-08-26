@@ -111,7 +111,11 @@ export default function Home() {
   return (
     <div className="container mx-auto min-h-screen flex flex-col p-6 bg-white text-gray-800">
       <div className="logo-container mb-6">
-        <img src="/calyptus_new_logo.avif" alt="Calyptus Logo" className="h-16 mx-auto" />
+        <img
+          src="/calyptus_new_logo.avif"
+          alt="Calyptus Logo"
+          className="h-16 mx-auto"
+        />
       </div>
       <div className="flex flex-col md:flex-row gap-6 flex-1">
         <div className="question-section flex flex-col bg-white p-6 rounded-lg shadow-md border border-gray-200 md:w-1/3">
@@ -135,7 +139,7 @@ export default function Home() {
             placeholder="Enter your assessment task or question here..."
           />
         </div>
-        <div className="chat-section flex-1 bg-white rounded-lg shadow-md border border-gray-200 flex flex-col mt-6 md:mt-0">
+        <div className="chat-section flex-1 h-[500px] bg-white rounded-lg shadow-md border border-gray-200 flex flex-col mt-6 md:mt-0">
           <div className="chat-header p-6 border-b border-gray-200 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-t-lg">
             <h2 className="text-xl font-semibold">AI Assistant</h2>
             <p className="text-sm">
@@ -144,7 +148,7 @@ export default function Home() {
           </div>
           <div
             ref={chatMessagesRef}
-            className="chat-messages flex-1 p-6 overflow-y-auto flex flex-col gap-4"
+            className="chat-messages flex-1 min-h-0 p-6 overflow-y-auto flex flex-col gap-4"
           >
             {messages.length === 0 && !isTyping && (
               <div className="text-center p-12 text-purple-300">
@@ -218,13 +222,16 @@ export default function Home() {
       <button
         onClick={() => {
           setIsUnlocked(true);
-          submitFormRef.current?.scrollIntoView({ behavior: 'smooth' });
+          submitFormRef.current?.scrollIntoView({ behavior: "smooth" });
         }}
         className="submit-test-button px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold rounded-lg hover:from-blue-600 hover:to-purple-600 mx-auto mt-6"
       >
         Submit Test
       </button>
-      <div ref={submitFormRef} className="submit-form-section p-8 bg-white rounded-lg shadow-md border border-gray-200 mt-6 relative">
+      <div
+        ref={submitFormRef}
+        className="submit-form-section p-8 bg-white rounded-lg shadow-md border border-gray-200 mt-6 relative"
+      >
         <div
           className={`${
             isUnlocked ? "" : "blur-sm opacity-50 pointer-events-none"
