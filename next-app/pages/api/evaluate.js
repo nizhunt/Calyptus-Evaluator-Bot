@@ -41,6 +41,15 @@ export default async function handler(req, res) {
     });
 
     const evaluation = completion.choices[0].message.content;
+
+    const logDir = path.join(process.cwd(), "logs");
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+    const logPath = path.join(logDir, "evaluation_logs.md");
+    const timestamp = new Date().toISOString();
+    const logEntry = `## Evaluation Log - ${timestamp}\n\n### Input:\n\`\`\`\n${fullPrompt}\n\`\`\`\n\n### Output:\n\`\`\`json\n${evaluation}\n\`\`\`\n\n---\n`;
+    fs.appendFileSync(logPath, logEntry);
     res.status(200).json({ evaluation });
   } catch (error) {
     console.error(error);
