@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
+import dynamic from 'next/dynamic';
 
 export default function Home() {
   const [assessmentQuestion, setAssessmentQuestion] = useState("");
@@ -14,12 +15,15 @@ export default function Home() {
   const [conversationFile, setConversationFile] = useState(null);
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isLocal, setIsLocal] = useState(false);
+  const [isChatUnlocked, setIsChatUnlocked] = useState(false);
+  const [recordingUrl, setRecordingUrl] = useState("");
+  const [transcript, setTranscript] = useState("");
+  const loomButtonRef = useRef(null);
   const [response, setResponse] = useState("");
   const [loading, setLoading] = useState(false);
   const chatMessagesRef = useRef(null);
   const submitFormRef = useRef(null);
   const router = useRouter();
-  // Remove: const isLocal = typeof window !== "undefined" && window.location.hostname === "localhost";
 
   useEffect(() => {
     if (chatMessagesRef.current) {
@@ -31,8 +35,12 @@ export default function Home() {
     setIsLocal(window.location.hostname === "localhost");
   }, []);
 
+  const [isRecording, setIsRecording] = useState(false);
+
+  const LoomButton = dynamic(() => import('../components/LoomButton'), { ssr: false });
+
   const handleSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || !isChatUnlocked) return;
     const newMessages = [...messages, { sender: "user", content: input }];
     setMessages(newMessages);
     setInput("");
@@ -136,10 +144,35 @@ export default function Home() {
             value={assessmentQuestion}
             onChange={(e) => setAssessmentQuestion(e.target.value)}
             className="w-full flex-1 p-4 border-2 border-gray-300 rounded-md focus:border-blue-500"
-            placeholder="Enter your assessment task or question here..."
+            placeholder="(Auto-populates in Prod) Enter your assessment task or question here..."
           />
+          <LoomButton
+  onRecordingStart={() => {
+    setIsChatUnlocked(true);
+    setIsRecording(true);
+  }}
+  onRecordingComplete={() => {
+    setIsRecording(false);
+  }}
+  onInsertClick={async (sharedUrl) => {
+    setRecordingUrl(sharedUrl);
+    try {
+      const res = await fetch("/api/get-transcript", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: sharedUrl }),
+      });
+      const data = await res.json();
+      setTranscript(data.transcript);
+      console.log("Recording Link:", sharedUrl);
+      console.log("Transcript:", data.transcript);
+    } catch (err) {
+      console.error("Error fetching transcript:", err);
+    }
+  }}
+/>
         </div>
-        <div className="chat-section flex-1 h-[500px] bg-white rounded-lg shadow-md border border-gray-200 flex flex-col mt-6 md:mt-0">
+        <div className="chat-section flex-1 h-[500px] bg-white rounded-lg shadow-md border border-gray-200 flex flex-col mt-6 md:mt-0 relative">
           <div className="chat-header p-6 border-b border-gray-200 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-t-lg">
             <h2 className="text-xl font-semibold">AI Assistant</h2>
             <p className="text-sm">
@@ -233,9 +266,6 @@ export default function Home() {
         className="submit-form-section p-8 bg-white rounded-lg shadow-md border border-gray-200 mt-6 relative"
       >
         <div
-          className={`${
-            isUnlocked ? "" : "blur-sm opacity-50 pointer-events-none"
-          }`}
         >
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">
             Submit Test
@@ -245,73 +275,84 @@ export default function Home() {
           </p>
           <form
             onSubmit={handleSubmit}
-            className="grid grid-cols-1 md:grid-cols-2 gap-4 space-y-0"
+            className={`grid grid-cols-1 gap-4 space-y-0 ${
+              isLocal ? "md:grid-cols-2" : ""
+            }`}
           >
-            <div className="form-group">
-              <label className="block text-sm font-semibold text-gray-700 mb-2 required">
-                Recording Link
-              </label>
-              <input
-                type="url"
-                value={recordingLink}
-                onChange={(e) => setRecordingLink(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white text-gray-800 placeholder-gray-500 shadow-sm hover:shadow-md transition-shadow duration-200"
-                placeholder="https://example.com/recording"
-              />
-            </div>
-            <div className="form-group">
-              <label className="block text-sm font-semibold text-gray-700 mb-2 required">
-                Transcription Link
-              </label>
-              <input
-                type="url"
-                value={transcriptionLink}
-                onChange={(e) => setTranscriptionLink(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white text-gray-800 placeholder-gray-500 shadow-sm hover:shadow-md transition-shadow duration-200"
-                placeholder="https://example.com/transcription"
-              />
-            </div>
-            <div className="form-group">
-              <label className="block text-sm font-semibold text-gray-700 mb-2 required">
-                Screenshots (Max 3)
-              </label>
-              <div className="flex flex-col gap-2">
-                {[0, 1, 2].map((i) => (
-                  <input
-                    key={i}
-                    type="file"
-                    onChange={(e) => {
-                      const newScreenshots = [...screenshots];
-                      newScreenshots[i] = e.target.files[0];
-                      setScreenshots(newScreenshots);
-                    }}
-                    className="w-full p-2 border-2 border-dashed border-gray-300 rounded-xl bg-white cursor-pointer hover:border-blue-500 hover:shadow-md transition-all duration-200"
-                    accept="image/*"
-                  />
-                ))}
+            <div className={`space-y-4 ${isLocal ? "md:col-span-1" : ""}`}>
+              <div className="form-group">
+                <label className="block text-sm font-semibold text-gray-700 mb-2 required">
+                  Screenshots (Max 3)
+                </label>
+                <div className="flex flex-col gap-2">
+                  {[0, 1, 2].map((i) => (
+                    <input
+                      key={i}
+                      type="file"
+                      onChange={(e) => {
+                        const newScreenshots = [...screenshots];
+                        newScreenshots[i] = e.target.files[0];
+                        setScreenshots(newScreenshots);
+                      }}
+                      className="w-full p-2 border-2 border-dashed border-gray-300 rounded-xl bg-white cursor-pointer hover:border-blue-500 hover:shadow-md transition-all duration-200"
+                      accept="image/*"
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Output File (Optional)
+                </label>
+                <input
+                  type="file"
+                  onChange={(e) => setOutputFile(e.target.files[0])}
+                  className="w-full p-2 border-2 border-dashed border-gray-300 rounded-xl bg-white cursor-pointer hover:border-blue-500 hover:shadow-md transition-all duration-200"
+                />
               </div>
             </div>
-            <div className="form-group">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Output File (Optional)
-              </label>
-              <input
-                type="file"
-                onChange={(e) => setOutputFile(e.target.files[0])}
-                className="w-full p-2 border-2 border-dashed border-gray-300 rounded-xl bg-white cursor-pointer hover:border-blue-500 hover:shadow-md transition-all duration-200"
-              />
-            </div>
-            <div className="form-group">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Conversation Markdown File (Optional)
-              </label>
-              <input
-                type="file"
-                onChange={(e) => setConversationFile(e.target.files[0])}
-                className="w-full p-2 border-2 border-dashed border-gray-300 rounded-xl bg-white cursor-pointer hover:border-blue-500 hover:shadow-md transition-all duration-200"
-                accept=".md,text/markdown"
-              />
-            </div>
+            {isLocal && (
+              <div className="form-group md:col-span-1">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                  Only for Testing
+                </h3>
+                <div className="form-group mb-4">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 required">
+                    Recording Link
+                  </label>
+                  <input
+                    type="url"
+                    value={recordingLink}
+                    onChange={(e) => setRecordingLink(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white text-gray-800 placeholder-gray-500 shadow-sm hover:shadow-md transition-shadow duration-200"
+                    placeholder="https://example.com/recording"
+                  />
+                </div>
+                <div className="form-group mb-4">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 required">
+                    Transcription Link
+                  </label>
+                  <input
+                    type="url"
+                    value={transcriptionLink}
+                    onChange={(e) => setTranscriptionLink(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white text-gray-800 placeholder-gray-500 shadow-sm hover:shadow-md transition-shadow duration-200"
+                    placeholder="https://example.com/transcription"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Conversation Markdown File (Optional)
+                  </label>
+                  <input
+                    type="file"
+                    onChange={(e) => setConversationFile(e.target.files[0])}
+                    className="w-full p-2 border-2 border-dashed border-gray-300 rounded-xl bg-white cursor-pointer hover:border-blue-500 hover:shadow-md transition-all duration-200"
+                    accept=".md,text/markdown"
+                  />
+                </div>
+              </div>
+            )}
             <div className="flex justify-end gap-3 md:col-span-2">
               <button
                 type="submit"
@@ -322,11 +363,6 @@ export default function Home() {
             </div>
           </form>
         </div>
-        {!isUnlocked && (
-          <div className="absolute inset-0 bg-gray-200 bg-opacity-50 flex items-center justify-center text-xl font-bold text-gray-600 pointer-events-auto">
-            Submit test to unlock
-          </div>
-        )}
       </div>
       {loading && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
