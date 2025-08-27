@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
-import dynamic from 'next/dynamic';
+import dynamic from "next/dynamic";
 
 export default function Home() {
   const [assessmentQuestion, setAssessmentQuestion] = useState("");
@@ -37,7 +37,9 @@ export default function Home() {
 
   const [isRecording, setIsRecording] = useState(false);
 
-  const LoomButton = dynamic(() => import('../components/LoomButton'), { ssr: false });
+  const LoomButton = dynamic(() => import("../components/LoomButton"), {
+    ssr: false,
+  });
 
   const handleSend = async () => {
     if (!input.trim() || !isChatUnlocked) return;
@@ -147,30 +149,30 @@ export default function Home() {
             placeholder="(Auto-populates in Prod) Enter your assessment task or question here..."
           />
           <LoomButton
-  onRecordingStart={() => {
-    setIsChatUnlocked(true);
-    setIsRecording(true);
-  }}
-  onRecordingComplete={() => {
-    setIsRecording(false);
-  }}
-  onInsertClick={async (sharedUrl) => {
-    setRecordingUrl(sharedUrl);
-    try {
-      const res = await fetch("/api/get-transcript", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: sharedUrl }),
-      });
-      const data = await res.json();
-      setTranscript(data.transcript);
-      console.log("Recording Link:", sharedUrl);
-      console.log("Transcript:", data.transcript);
-    } catch (err) {
-      console.error("Error fetching transcript:", err);
-    }
-  }}
-/>
+            onRecordingStart={() => {
+              setIsChatUnlocked(true);
+              setIsRecording(true);
+            }}
+            onRecordingComplete={() => {
+              setIsRecording(false);
+            }}
+            onInsertClick={async (sharedUrl) => {
+              setRecordingUrl(sharedUrl);
+              try {
+                const res = await fetch("/api/get-transcript", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ url: sharedUrl }),
+                });
+                const data = await res.json();
+                setTranscript(data.transcript);
+                console.log("Recording Link:", sharedUrl);
+                console.log("Transcript:", data.transcript);
+              } catch (err) {
+                console.error("Error fetching transcript:", err);
+              }
+            }}
+          />
         </div>
         <div className="chat-section flex-1 h-[500px] bg-white rounded-lg shadow-md border border-gray-200 flex flex-col mt-6 md:mt-0 relative">
           <div className="chat-header p-6 border-b border-gray-200 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-t-lg">
@@ -265,14 +267,28 @@ export default function Home() {
         ref={submitFormRef}
         className="submit-form-section p-8 bg-white rounded-lg shadow-md border border-gray-200 mt-6 relative"
       >
-        <div
-        >
+        <div>
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">
             Submit Test
           </h2>
           <p className="text-sm text-gray-600 mb-6">
             Please provide the required information for your test submission
           </p>
+          {recordingUrl && (
+            <div className="form-group mb-6">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Recorded Video Preview
+              </label>
+              <div className="relative max-w-md mx-auto pb-[56.25%] h-0 overflow-hidden rounded-lg shadow-md">
+                <iframe
+                  src={recordingUrl.replace("/share/", "/embed/")}
+                  frameBorder="0"
+                  allowFullScreen
+                  className="absolute top-0 left-0 w-full h-full"
+                ></iframe>
+              </div>
+            </div>
+          )}
           <form
             onSubmit={handleSubmit}
             className={`grid grid-cols-1 gap-4 space-y-0 ${

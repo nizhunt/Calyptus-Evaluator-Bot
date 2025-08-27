@@ -6,7 +6,8 @@ The Helperbot Interface is an AI-powered evaluation tool designed to assess cand
 
 ### Key Features
 - Interactive chat interface for assessment guidance
-- Form submission for evaluation materials (links, screenshots, files)
+- Video recording integration with Loom SDK
+- Form submission for evaluation materials (links, screenshots, files, recordings)
 - AI-powered evaluation using a custom prompt template
 - Persistent storage of evaluations in JSON format
 - Dynamic pages for viewing individual evaluations
@@ -24,6 +25,8 @@ The project is organized as follows:
   - `evaluator.py`: Standalone Python script for command-line evaluation.
   - `index.html`: Original HTML interface with JavaScript for basic functionality.
   - `next-app/`: Main Next.js application directory.
+  - `components/`: React components.
+    - `LoomButton.js`: Component for handling Loom video recording integration.
   - `TECHNICAL_DOCUMENTATION.md`: This file.
 
 - **Next.js App Directory** (`next-app/`):
@@ -130,8 +133,14 @@ const handleSubmit = async (e) => {
 
 1. **Install Dependencies**: `cd next-app && npm install`
 2. **Set Environment Variables**: Add `OPENAI_API_KEY` to `.env.local`
-3. **Run Development Server**: `npm run dev -- -p 3001` (accessible at http://localhost:3001)
-4. **Build for Production**: `npm run build && npm start`
+3. **Run Development Server**: `npm run dev` (accessible at http://localhost:3000)
+4. **Build for Production**: `npm run build && npm start` (accessible at http://localhost:3000)
+
+### Recent Changes
+- Integrated Loom Record SDK for video recording capabilities, with logic consolidated in `components/LoomButton.js` and integrated into `pages/index.js` using dynamic imports to handle SSR issues.
+- Removed blur effects from the assessment textarea and submit form in `pages/index.js` to improve accessibility.
+- Resolved development-mode 404 errors related to Vite HMR by confirming they do not affect production.
+- Updated server port to 3000 for both development and production.
 
 ## Potential Improvements
 - Integrate a database for evaluations.
