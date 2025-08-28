@@ -38,6 +38,8 @@ export default function Home() {
   }, []);
 
   const [isRecording, setIsRecording] = useState(false);
+  const [hasStartedRecording, setHasStartedRecording] = useState(false);
+  const [hasCompletedRecording, setHasCompletedRecording] = useState(false);
 
   const LoomButton = dynamic(() => import("../components/LoomButton"), {
     ssr: false,
@@ -148,9 +150,11 @@ export default function Home() {
             onRecordingStart={() => {
               setIsChatUnlocked(true);
               setIsRecording(true);
+              setHasStartedRecording(true);
             }}
             onRecordingComplete={() => {
               setIsRecording(false);
+              setHasCompletedRecording(true);
             }}
             onInsertClick={async (sharedUrl) => {
               setRecordingUrl(sharedUrl);
@@ -170,7 +174,7 @@ export default function Home() {
             }}
           />
         </div>
-        <div className="chat-section flex-1 h-[500px] bg-white rounded-lg shadow-md border border-gray-200 flex flex-col mt-6 md:mt-0 relative">
+        <div className={`chat-section flex-1 h-[500px] bg-white rounded-lg shadow-md border border-gray-200 flex flex-col mt-6 md:mt-0 relative ${!hasStartedRecording ? 'pointer-events-none opacity-50 blur-sm' : ''}`}>
           <div className="chat-header p-6 border-b border-gray-200 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-t-lg">
             <h2 className="text-xl font-semibold">AI Assistant</h2>
             <p className="text-sm">
@@ -252,11 +256,11 @@ export default function Home() {
       </div>
       <div
         ref={submitFormRef}
-        className="submit-form-section p-8 bg-white rounded-lg shadow-md border border-gray-200 mt-6 relative"
+        className={`submit-form-section p-8 bg-white rounded-lg shadow-md border border-gray-200 mt-6 relative ${!hasCompletedRecording ? 'pointer-events-none opacity-50 blur-sm' : ''}`}
       >
         <div>
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-            Submit Test
+            Stop Recording and Insert Video to Submit Test
           </h2>
           <p className="text-sm text-gray-600 mb-6">
             Please provide the required information for your test submission
@@ -266,7 +270,7 @@ export default function Home() {
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Recorded Video Preview
               </label>
-              <div className="relative max-w-[33.6rem] mx-auto pb-[56.25%] h-0 overflow-hidden rounded-lg shadow-md">
+              <div className="relative max-w-md md:max-w-[33.6rem] mx-auto pb-[56.25%] h-0 overflow-hidden rounded-lg shadow-md">
                 <iframe
                   src={recordingUrl.replace("/share/", "/embed/")}
                   frameBorder="0"
