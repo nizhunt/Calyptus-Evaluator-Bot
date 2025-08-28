@@ -6,6 +6,7 @@ const withTM = require('next-transpile-modules')([
 ]);
 
 module.exports = withTM({
+  reactStrictMode: false,
   webpack: (config) => {
     config.module.rules.push({
       test: /\.css$/,

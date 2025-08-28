@@ -20,7 +20,7 @@ export default async function handler(req, res) {
   try {
     const promptTemplatePath = path.join(
       process.cwd(),
-      "..",
+      "data",
       "evaluation_prompt.md"
     );
     const promptTemplate = fs.readFileSync(promptTemplatePath, "utf8");

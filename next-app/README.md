@@ -15,9 +15,10 @@ This is a Next.js application adapted from the original evaluator.js script. It 
    npm install
    ```
 
-2. Copy `evaluation_prompt.md` from the parent directory into this `next-app` folder, or adjust the path in `pages/api/evaluate.js` if needed.
+Note: The evaluation prompt is located in the `data/` directory.
 
 3. For local development, create a `.env.local` file with:
+
    ```
    OPENAI_API_KEY=your_openai_api_key_here
    ```
@@ -35,6 +36,7 @@ This is a Next.js application adapted from the original evaluator.js script. It 
 2. Go to Vercel dashboard, create a new project, and import your repository.
 
 3. In the project settings, add an environment variable:
+
    - Key: OPENAI_API_KEY
    - Value: your_openai_api_key_here
 

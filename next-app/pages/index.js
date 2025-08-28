@@ -32,7 +32,9 @@ export default function Home() {
   }, [messages, isTyping]);
 
   useEffect(() => {
-    setIsLocal(window.location.hostname === "localhost");
+    const local = window.location.hostname === "localhost";
+    setIsLocal(local);
+    setIsChatUnlocked(local);
   }, []);
 
   const [isRecording, setIsRecording] = useState(false);
@@ -145,7 +147,7 @@ export default function Home() {
           <textarea
             value={assessmentQuestion}
             onChange={(e) => setAssessmentQuestion(e.target.value)}
-            className="w-full flex-1 p-4 border-2 border-gray-300 rounded-md focus:border-blue-500"
+            className="w-full flex-1 p-4 border-2 border-gray-300 rounded-md focus:border-blue-500 mb-4"
             placeholder="(Auto-populates in Prod) Enter your assessment task or question here..."
           />
           <LoomButton

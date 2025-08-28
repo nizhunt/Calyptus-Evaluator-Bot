@@ -47,7 +47,7 @@ export default function LoomButton({ onRecordingStart, onRecordingComplete, onIn
   return (
     <button
       ref={buttonRef}
-      className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
+      className="submit-test-button px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold rounded-lg hover:from-blue-600 hover:to-purple-600 mx-auto mt-6"
     >
       Record Test
     </button>
