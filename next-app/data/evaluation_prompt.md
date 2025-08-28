@@ -28,47 +28,45 @@ This prompt is designed to evaluate a candidate's performance on an assessment t
 **Your Task**: Evaluate the candidate across three dimensions, providing precise, evidence-based feedback. Adjust for abnormalities (e.g., penalize unclear transcription only if due to candidate's articulation, not AI errors).
 IMPORTANT: Your response MUST be ONLY a valid JSON object following this exact schema, with no additional text, markdown, or explanations before or after the JSON. Ensure it is parseable JSON without any wrappers:
 {
-  "evaluation": {
-    "helperBotConversation": {
-      "score": number, // out of 10
-      "subScores": {
-        "questionRelevance": number, // 0-2
-        "engagementDepth": number,
-        "strategicThinking": number,
-        "learningProgression": number,
-        "practicalApplication": number
-      },
-      "comments": string // Detailed comments
+  "helperBotConversation": {
+    "score": number, // out of 10
+    "subScores": {
+      "questionRelevance": number, // 0-2
+      "engagementDepth": number,
+      "strategicThinking": number,
+      "learningProgression": number,
+      "practicalApplication": number
     },
-    "outputQuality": {
-      "score": number,
-      "subScores": {
-        "taskCompletion": number,
-        "technicalAccuracy": number,
-        "presentationClarity": number,
-        "documentationQuality": number,
-        "innovationCreativity": number
-      },
-      "comments": string
+    "comments": string // Detailed comments
+  },
+  "outputQuality": {
+    "score": number,
+    "subScores": {
+      "taskCompletion": number,
+      "technicalAccuracy": number,
+      "presentationClarity": number,
+      "documentationQuality": number,
+      "innovationCreativity": number
     },
-    "transcriptionQuality": {
-      "score": number,
-      "subScores": {
-        "clarityExpression": number,
-        "technicalCommunication": number,
-        "structureFlow": number,
-        "completeness": number,
-        "professionalism": number
-      },
-      "comments": string
+    "comments": string
+  },
+  "transcriptionQuality": {
+    "score": number,
+    "subScores": {
+      "clarityExpression": number,
+      "technicalCommunication": number,
+      "structureFlow": number,
+      "completeness": number,
+      "professionalism": number
     },
-    "overallScore": number, // Weighted total out of 10
-    "analysis": {
-      "strengths": array of strings,
-      "areasForImprovement": array of strings,
-      "keyObservations": array of strings,
-      "recommendation": string
-    }
+    "comments": string
+  },
+  "overallScore": number, // Weighted total out of 10
+  "analysis": {
+    "strengths": array of strings,
+    "areasForImprovement": array of strings,
+    "keyObservations": array of strings,
+    "recommendation": string
   }
 }
 Ensure the output is only the JSON object, nothing else.

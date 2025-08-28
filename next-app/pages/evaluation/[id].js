@@ -1,5 +1,5 @@
-import { createClient } from 'redis';
 import { useState } from "react";
+import { list } from '@vercel/blob';
 
 export default function Evaluation({ evaluation }) {
   let parsedEval;
@@ -125,24 +125,15 @@ export default function Evaluation({ evaluation }) {
 }
 
 export async function getServerSideProps({ params }) {
-  const isDeployed = !!process.env.VERCEL_URL;
-  let redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-  if (isDeployed && redisUrl.startsWith('redis://')) {
-    redisUrl = redisUrl.replace('redis://', 'rediss://');
-  }
-  const client = createClient({ url: redisUrl });
-  client.on('error', (err) => console.error('Redis Client Error', err));
-  await client.connect();
   let evaluation = "Not found";
   try {
-    const evalStr = await client.get(`evaluation:${params.id}`);
-    if (evalStr) {
-      evaluation = evalStr;
+    const { blobs } = await list({ prefix: `evaluations/${params.id}.json` });
+    if (blobs.length > 0) {
+      const response = await fetch(blobs[0].url);
+      evaluation = await response.text();
     }
   } catch (error) {
     console.error(error);
-  } finally {
-    await client.disconnect();
   }
   return { props: { evaluation } };
 }
