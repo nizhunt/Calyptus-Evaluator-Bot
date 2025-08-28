@@ -37,7 +37,7 @@ export default function Evaluation({ evaluation }) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
           <h2 className="text-xl font-semibold mb-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white p-2 rounded-t-lg">
-            Helper Bot Conversation
+            Diagnostic Score
           </h2>
           <div className="relative w-24 h-24 mx-auto mb-4">
             <div className="absolute inset-0 rounded-full bg-gray-200"></div>
@@ -59,7 +59,7 @@ export default function Evaluation({ evaluation }) {
         </div>
         <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
           <h2 className="text-xl font-semibold mb-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white p-2 rounded-t-lg">
-            Output Quality
+            Solution Score
           </h2>
           <div className="relative w-24 h-24 mx-auto mb-4">
             <div className="absolute inset-0 rounded-full bg-gray-200"></div>
@@ -77,7 +77,7 @@ export default function Evaluation({ evaluation }) {
         </div>
         <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
           <h2 className="text-xl font-semibold mb-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white p-2 rounded-t-lg">
-            Transcription Quality
+            Communication Score
           </h2>
           <div className="relative w-24 h-24 mx-auto mb-4">
             <div className="absolute inset-0 rounded-full bg-gray-200"></div>
