@@ -77,7 +77,7 @@ Ensure the output is only the JSON object, nothing else.
 
 - **Original Assessment Task**: [INSERT_ASSESSMENT_QUESTION]
 - **Helper Bot Conversation**: [INSERT_CONVERSATION_MARKDOWN]
-- **Transcription Link**: [INSERT_TRANSCRIPTION_LINK]
+- **Transcript Content**: [INSERT_TRANSCRIPT_CONTENT]
 - **Screenshots**: [INSERT_SCREENSHOT_DESCRIPTIONS_OR_LINKS]
 - **Output Files**: [INSERT_OUTPUT_FILE_DESCRIPTIONS_OR_CONTENT]
 
@@ -113,9 +113,9 @@ Evaluate the quality and completeness of submitted materials, considering task a
 
 **Score: \_\_\_/10** (Sum of sub-scores)
 
-#### 3. Transcription Quality (Weight: 20%)
+#### 3. **Transcription Quality (Weight: 20%)
 
-Evaluate verbal communication effectiveness based on the provided transcription, accounting for potential transcription abnormalities.
+Evaluate verbal communication effectiveness based on the provided transcript content, accounting for potential transcription abnormalities.
 
 **Criteria to assess (each out of 2 points, total 10):**
 
@@ -125,7 +125,7 @@ Evaluate verbal communication effectiveness based on the provided transcription,
 - **Completeness** (0-2): Coverage of all task aspects?
 - **Professionalism** (0-2): Demonstration of professional communication skills?
 
-**Adjustments**: If transcription has errors (e.g., garbled text due to AI inaccuracies, accents, or noise), deduct points only for candidate-caused issues (e.g., mumbling), not technical transcription failures. If transcription is unclear, note as an abnormality and score conservatively.
+**Adjustments**: If the transcript content has errors (e.g., garbled text due to AI inaccuracies, accents, or noise), deduct points only for candidate-caused issues (e.g., mumbling), not technical transcription failures. If the transcript is empty or unclear, note as an abnormality and score conservatively.
 
 **Score: \_\_\_/10** (Sum of sub-scores)
 
@@ -163,7 +163,7 @@ Provide evidence-based bullet points, referencing specific inputs.
 ## Usage Instructions:
 
 1. Replace placeholders with actual content, including descriptions or excerpts for files/screenshots.
-2. Evaluate based on the provided transcription.
+2. Evaluate based on the provided transcript content.
 3. Use sub-scores for precision; justify all scores with evidence.
 4. Calculate weighted total objectively.
 5. Keep feedback constructive, specific, and balanced.

@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   const {
     assessmentQuestion,
     conversationContent,
-    transcriptionLink,
+    transcript,
     screenshots,
     outputFiles,
   } = req.body;
@@ -28,7 +28,7 @@ export default async function handler(req, res) {
     let fullPrompt = promptTemplate
       .replace("[INSERT_ASSESSMENT_QUESTION]", assessmentQuestion)
       .replace("[INSERT_CONVERSATION_MARKDOWN]", conversationContent)
-      .replace("[INSERT_TRANSCRIPTION_LINK]", transcriptionLink)
+      .replace("[INSERT_TRANSCRIPT_CONTENT]", transcript || '')
       .replace("[INSERT_SCREENSHOT_DESCRIPTIONS_OR_LINKS]", screenshots)
       .replace("[INSERT_OUTPUT_FILE_DESCRIPTIONS_OR_CONTENT]", outputFiles);
 
@@ -42,14 +42,8 @@ export default async function handler(req, res) {
 
     const evaluation = completion.choices[0].message.content;
 
-    const logDir = path.join(process.cwd(), "logs");
-    if (!fs.existsSync(logDir)) {
-      fs.mkdirSync(logDir, { recursive: true });
-    }
-    const logPath = path.join(logDir, "evaluation_logs.md");
-    const timestamp = new Date().toISOString();
-    const logEntry = `## Evaluation Log - ${timestamp}\n\n### Input:\n\`\`\`\n${fullPrompt}\n\`\`\`\n\n### Output:\n\`\`\`json\n${evaluation}\n\`\`\`\n\n---\n`;
-    fs.appendFileSync(logPath, logEntry);
+    // Removed file system logging to avoid EROFS in serverless environments
+
     res.status(200).json({ evaluation });
   } catch (error) {
     console.error(error);

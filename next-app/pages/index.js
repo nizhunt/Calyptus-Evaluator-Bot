@@ -91,7 +91,7 @@ export default function Home() {
         body: JSON.stringify({
           assessmentQuestion,
           conversationContent,
-          transcriptionLink,
+          transcript,
           screenshots: screenshots.filter((s) => s).join(", "),
           outputFiles: outputFile ? outputFile.name : "",
         }),
