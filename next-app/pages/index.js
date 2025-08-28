@@ -250,15 +250,6 @@ export default function Home() {
           </div>
         </div>
       </div>
-      <button
-        onClick={() => {
-          setIsUnlocked(true);
-          submitFormRef.current?.scrollIntoView({ behavior: "smooth" });
-        }}
-        className="submit-test-button px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold rounded-lg hover:from-blue-600 hover:to-purple-600 mx-auto mt-6"
-      >
-        Submit Test
-      </button>
       <div
         ref={submitFormRef}
         className="submit-form-section p-8 bg-white rounded-lg shadow-md border border-gray-200 mt-6 relative"
@@ -275,7 +266,7 @@ export default function Home() {
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Recorded Video Preview
               </label>
-              <div className="relative max-w-md mx-auto pb-[56.25%] h-0 overflow-hidden rounded-lg shadow-md">
+              <div className="relative max-w-[33.6rem] mx-auto pb-[56.25%] h-0 overflow-hidden rounded-lg shadow-md">
                 <iframe
                   src={recordingUrl.replace("/share/", "/embed/")}
                   frameBorder="0"

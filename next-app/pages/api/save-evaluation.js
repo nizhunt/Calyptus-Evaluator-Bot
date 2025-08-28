@@ -1,21 +1,33 @@
-import { kv } from '@vercel/kv';
+import { createClient } from 'redis';
 import { randomUUID } from 'crypto';
 
 export default async function handler(req, res) {
-  if (req.method === 'POST') {
-    const { evaluation } = req.body;
-    const id = randomUUID();
-    await kv.set(`evaluation:${id}`, evaluation);
-    res.status(200).json({ id });
-  } else if (req.method === 'GET') {
-    const { id } = req.query;
-    const evaluation = await kv.get(`evaluation:${id}`);
-    if (evaluation) {
-      res.status(200).json({ evaluation });
+  const client = createClient({
+    url: process.env.REDIS_URL,
+    socket: { tls: true }
+  });
+  await client.connect();
+
+  try {
+    if (req.method === 'POST') {
+      const { evaluation } = req.body;
+      const id = randomUUID();
+      await client.set(`evaluation:${id}`, JSON.stringify(evaluation));
+      res.status(200).json({ id });
+    } else if (req.method === 'GET') {
+      const { id } = req.query;
+      const evalStr = await client.get(`evaluation:${id}`);
+      if (evalStr) {
+        res.status(200).json({ evaluation: JSON.parse(evalStr) });
+      } else {
+        res.status(404).json({ error: 'Evaluation not found' });
+      }
     } else {
-      res.status(404).json({ error: 'Evaluation not found' });
+      res.status(405).json({ error: 'Method not allowed' });
     }
-  } else {
-    res.status(405).json({ error: 'Method not allowed' });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  } finally {
+    await client.disconnect();
   }
 }
