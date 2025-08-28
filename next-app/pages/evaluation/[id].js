@@ -24,7 +24,6 @@ export default function Evaluation({ evaluation }) {
   const {
     helperBotConversation,
     outputQuality,
-    transcriptionQuality,
     overallScore,
     analysis,
   } = parsedEval.evaluation;
@@ -34,7 +33,7 @@ export default function Evaluation({ evaluation }) {
       <h1 className="text-3xl font-bold mb-8 text-center bg-gradient-to-r from-blue-500 to-purple-500 text-transparent bg-clip-text">
         Evaluation Dashboard
       </h1>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
           <h2 className="text-xl font-semibold mb-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white p-2 rounded-t-lg">
             Diagnostic Score
@@ -75,28 +74,7 @@ export default function Evaluation({ evaluation }) {
           </div>
           <p className="text-sm text-gray-600">{outputQuality.comments}</p>
         </div>
-        <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-          <h2 className="text-xl font-semibold mb-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white p-2 rounded-t-lg">
-            Communication Score
-          </h2>
-          <div className="relative w-24 h-24 mx-auto mb-4">
-            <div className="absolute inset-0 rounded-full bg-gray-200"></div>
-            <div
-              className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 to-purple-500"
-              style={{
-                clipPath: `inset(0 0 ${
-                  100 - transcriptionQuality.score * 10
-                }% 0)`,
-              }}
-            ></div>
-            <p className="absolute inset-0 flex items-center justify-center text-2xl font-bold">
-              {transcriptionQuality.score}/10
-            </p>
-          </div>
-          <p className="text-sm text-gray-600">
-            {transcriptionQuality.comments}
-          </p>
-        </div>
+        
       </div>
       <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8">
         <h2 className="text-2xl font-semibold mb-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white p-2 rounded-t-lg">

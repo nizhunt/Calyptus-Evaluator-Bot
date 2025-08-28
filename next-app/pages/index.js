@@ -69,12 +69,6 @@ export default function Home() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!isLocal && (!recordingLink || !transcriptionLink)) {
-      alert(
-        "Please fill in the required fields: Recording Link and Transcription Link."
-      );
-      return;
-    }
     setLoading(true);
     setShowModal(false);
 
