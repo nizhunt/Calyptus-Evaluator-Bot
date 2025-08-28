@@ -2,10 +2,11 @@ import { createClient } from 'redis';
 import { randomUUID } from 'crypto';
 
 export default async function handler(req, res) {
-  const client = createClient({
-    url: process.env.REDIS_URL,
-    socket: { tls: true }
-  });
+  let redisUrl = process.env.REDIS_URL;
+  if (redisUrl.startsWith('redis://')) {
+    redisUrl = redisUrl.replace('redis://', 'rediss://');
+  }
+  const client = createClient({ url: redisUrl });
   await client.connect();
 
   try {
