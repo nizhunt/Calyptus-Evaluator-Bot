@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 export default function LoomButton({ onRecordingStart, onRecordingComplete, onInsertClick }) {
   const buttonRef = useRef(null);
   const [isSdkReady, setIsSdkReady] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
 
   useEffect(() => {
     async function initLoom() {
@@ -26,10 +27,12 @@ export default function LoomButton({ onRecordingStart, onRecordingComplete, onIn
         const sdkButton = configureButton({ element: button });
 
         sdkButton.on("recording-start", () => {
+          setIsRecording(true);
           onRecordingStart();
         });
 
         sdkButton.on("recording-complete", () => {
+          setIsRecording(false);
           onRecordingComplete();
         });
 
@@ -50,8 +53,8 @@ export default function LoomButton({ onRecordingStart, onRecordingComplete, onIn
   return (
     <button
       ref={buttonRef}
-      disabled={!isSdkReady}
-      className={`submit-test-button px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold rounded-lg hover:from-blue-600 hover:to-purple-600 mx-auto mt-6 ${!isSdkReady ? 'opacity-50 cursor-not-allowed' : ''}`}
+      disabled={!isSdkReady || isRecording}
+      className={`submit-test-button px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold rounded-lg hover:from-blue-600 hover:to-purple-600 mx-auto mt-6 ${!isSdkReady || isRecording ? 'opacity-50 cursor-not-allowed' : ''}`}
     >
       Record Test
     </button>

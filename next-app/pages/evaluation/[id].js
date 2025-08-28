@@ -1,5 +1,4 @@
-import fs from "fs";
-import path from "path";
+import { createClient } from 'redis';
 import { useState } from "react";
 
 export default function Evaluation({ evaluation }) {
@@ -26,7 +25,7 @@ export default function Evaluation({ evaluation }) {
     outputQuality,
     overallScore,
     analysis,
-  } = parsedEval.evaluation;
+  } = parsedEval;
 
   return (
     <div className="container mx-auto min-h-screen p-6 bg-white text-gray-800">
@@ -43,17 +42,17 @@ export default function Evaluation({ evaluation }) {
             <div
               className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 to-purple-500"
               style={{
-                clipPath: `inset(0 0 ${
-                  100 - helperBotConversation.score * 10
+                clipPath: `inset(0 0 ${ 
+                  100 - (helperBotConversation?.score ?? 0) * 10 
                 }% 0)`,
               }}
             ></div>
             <p className="absolute inset-0 flex items-center justify-center text-2xl font-bold">
-              {helperBotConversation.score}/10
+              {(helperBotConversation?.score ?? 0)}/10
             </p>
           </div>
           <p className="text-sm text-gray-600">
-            {helperBotConversation.comments}
+            {helperBotConversation?.comments ?? ''}
           </p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
@@ -65,14 +64,14 @@ export default function Evaluation({ evaluation }) {
             <div
               className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 to-purple-500"
               style={{
-                clipPath: `inset(0 0 ${100 - outputQuality.score * 10}% 0)`,
+                clipPath: `inset(0 0 ${100 - (outputQuality?.score ?? 0) * 10}% 0)`,
               }}
             ></div>
             <p className="absolute inset-0 flex items-center justify-center text-2xl font-bold">
-              {outputQuality.score}/10
+              {(outputQuality?.score ?? 0)}/10
             </p>
           </div>
-          <p className="text-sm text-gray-600">{outputQuality.comments}</p>
+          <p className="text-sm text-gray-600">{outputQuality?.comments ?? ''}</p>
         </div>
         
       </div>
@@ -84,10 +83,10 @@ export default function Evaluation({ evaluation }) {
           <div className="absolute inset-0 rounded-full bg-gray-200"></div>
           <div
             className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 to-purple-500"
-            style={{ clipPath: `inset(0 0 ${100 - overallScore * 10}% 0)` }}
+            style={{ clipPath: `inset(0 0 ${100 - (overallScore ?? 0) * 10}% 0)` }}
           ></div>
           <p className="absolute inset-0 flex items-center justify-center text-3xl font-bold">
-            {overallScore}/10
+            {(overallScore ?? 0)}/10
           </p>
         </div>
       </div>
@@ -95,47 +94,55 @@ export default function Evaluation({ evaluation }) {
         <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
           <h2 className="text-xl font-semibold mb-4">Strengths</h2>
           <ul className="list-disc pl-5">
-            {analysis.strengths.map((item, index) => (
+            {analysis?.strengths?.map((item, index) => (
               <li key={index}>{item}</li>
-            ))}
+            )) ?? []}
           </ul>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
           <h2 className="text-xl font-semibold mb-4">Areas for Improvement</h2>
           <ul className="list-disc pl-5">
-            {analysis.areasForImprovement.map((item, index) => (
+            {analysis?.areasForImprovement?.map((item, index) => (
               <li key={index}>{item}</li>
-            ))}
+            )) ?? []}
           </ul>
         </div>
       </div>
       <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mt-6">
         <h2 className="text-xl font-semibold mb-4">Key Observations</h2>
         <ul className="list-disc pl-5">
-          {analysis.keyObservations.map((item, index) => (
+          {analysis?.keyObservations?.map((item, index) => (
             <li key={index}>{item}</li>
-          ))}
+          )) ?? []}
         </ul>
       </div>
       <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mt-6">
         <h2 className="text-xl font-semibold mb-4">Recommendation</h2>
-        <p>{analysis.recommendation}</p>
+        <p>{analysis?.recommendation ?? ''}</p>
       </div>
     </div>
   );
 }
 
 export async function getServerSideProps({ params }) {
-  const dataPath = path.join(process.cwd(), "data", "evaluations.json");
+  const isDeployed = !!process.env.VERCEL_URL;
+  let redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+  if (isDeployed && redisUrl.startsWith('redis://')) {
+    redisUrl = redisUrl.replace('redis://', 'rediss://');
+  }
+  const client = createClient({ url: redisUrl });
+  client.on('error', (err) => console.error('Redis Client Error', err));
+  await client.connect();
   let evaluation = "Not found";
   try {
-    const evaluations = JSON.parse(fs.readFileSync(dataPath, "utf8"));
-    const evalItem = evaluations.find((e) => e.id === params.id);
-    if (evalItem) {
-      evaluation = evalItem.evaluation;
+    const evalStr = await client.get(`evaluation:${params.id}`);
+    if (evalStr) {
+      evaluation = evalStr;
     }
   } catch (error) {
     console.error(error);
+  } finally {
+    await client.disconnect();
   }
   return { props: { evaluation } };
 }

@@ -2,11 +2,13 @@ import { createClient } from 'redis';
 import { randomUUID } from 'crypto';
 
 export default async function handler(req, res) {
-  let redisUrl = process.env.REDIS_URL;
-  if (redisUrl.startsWith('redis://')) {
+  const isDeployed = !!process.env.VERCEL_URL;
+  let redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+  if (isDeployed && redisUrl.startsWith('redis://')) {
     redisUrl = redisUrl.replace('redis://', 'rediss://');
   }
   const client = createClient({ url: redisUrl });
+  client.on('error', (err) => console.error('Redis Client Error', err));
   await client.connect();
 
   try {

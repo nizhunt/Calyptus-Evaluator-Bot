@@ -256,119 +256,119 @@ export default function Home() {
       </div>
       <div
         ref={submitFormRef}
-        className={`submit-form-section p-8 bg-white rounded-lg shadow-md border border-gray-200 mt-6 relative ${!hasCompletedRecording ? 'pointer-events-none opacity-50 blur-sm' : ''}`}
+        className={`submit-form-section p-8 bg-white rounded-lg shadow-md border border-gray-200 mt-6 relative`}
       >
         <div>
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">
             Stop Recording and Insert Video to Submit Test
           </h2>
-          <p className="text-sm text-gray-600 mb-6">
-            Please provide the required information for your test submission
-          </p>
-          {recordingUrl && (
-            <div className="form-group mb-6">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Recorded Video Preview
-              </label>
-              <div className="relative max-w-md md:max-w-[33.6rem] mx-auto pb-[56.25%] h-0 overflow-hidden rounded-lg shadow-md">
-                <iframe
-                  src={recordingUrl.replace("/share/", "/embed/")}
-                  frameBorder="0"
-                  allowFullScreen
-                  className="absolute top-0 left-0 w-full h-full"
-                ></iframe>
-              </div>
-            </div>
-          )}
-          <form
-            onSubmit={handleSubmit}
-            className={`grid grid-cols-1 gap-4 space-y-0 ${
-              isLocal ? "md:grid-cols-2" : ""
-            }`}
-          >
-            <div className={`space-y-4 ${isLocal ? "md:col-span-1" : ""}`}>
-              <div className="form-group">
-                <label className="block text-sm font-semibold text-gray-700 mb-2 required">
-                  Screenshots (Max 3)
-                </label>
-                <div className="flex flex-col gap-2">
-                  {[0, 1, 2].map((i) => (
-                    <input
-                      key={i}
-                      type="file"
-                      onChange={(e) => {
-                        const newScreenshots = [...screenshots];
-                        newScreenshots[i] = e.target.files[0];
-                        setScreenshots(newScreenshots);
-                      }}
-                      className="w-full p-2 border-2 border-dashed border-gray-300 rounded-xl bg-white cursor-pointer hover:border-blue-500 hover:shadow-md transition-all duration-200"
-                      accept="image/*"
-                    />
-                  ))}
-                </div>
-              </div>
-              <div className="form-group">
+          <div className={`${!hasCompletedRecording ? 'pointer-events-none opacity-50 blur-sm' : ''}`}>
+            <p className="text-sm text-gray-600 mb-6">
+              Please provide the required information for your test submission
+            </p>
+            {recordingUrl && (
+              <div className="form-group mb-6">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Output File (Optional)
+                  Recorded Video Preview
                 </label>
-                <input
-                  type="file"
-                  onChange={(e) => setOutputFile(e.target.files[0])}
-                  className="w-full p-2 border-2 border-dashed border-gray-300 rounded-xl bg-white cursor-pointer hover:border-blue-500 hover:shadow-md transition-all duration-200"
-                />
-              </div>
-            </div>
-            {isLocal && (
-              <div className="form-group md:col-span-1">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                  Only for Testing
-                </h3>
-                <div className="form-group mb-4">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 required">
-                    Recording Link
-                  </label>
-                  <input
-                    type="url"
-                    value={recordingLink}
-                    onChange={(e) => setRecordingLink(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white text-gray-800 placeholder-gray-500 shadow-sm hover:shadow-md transition-shadow duration-200"
-                    placeholder="https://example.com/recording"
-                  />
-                </div>
-                <div className="form-group mb-4">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 required">
-                    Transcription Link
-                  </label>
-                  <input
-                    type="url"
-                    value={transcriptionLink}
-                    onChange={(e) => setTranscriptionLink(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white text-gray-800 placeholder-gray-500 shadow-sm hover:shadow-md transition-shadow duration-200"
-                    placeholder="https://example.com/transcription"
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Conversation Markdown File (Optional)
-                  </label>
-                  <input
-                    type="file"
-                    onChange={(e) => setConversationFile(e.target.files[0])}
-                    className="w-full p-2 border-2 border-dashed border-gray-300 rounded-xl bg-white cursor-pointer hover:border-blue-500 hover:shadow-md transition-all duration-200"
-                    accept=".md,text/markdown"
-                  />
+                <div className="relative max-w-md md:max-w-[33.6rem] mx-auto pb-[56.25%] h-0 overflow-hidden rounded-lg shadow-md">
+                  <iframe
+                    src={recordingUrl.replace("/share/", "/embed/")}
+                    frameBorder="0"
+                    allowFullScreen
+                    className="absolute top-0 left-0 w-full h-full"
+                  ></iframe>
                 </div>
               </div>
             )}
-            <div className="flex justify-end gap-3 md:col-span-2">
-              <button
-                type="submit"
-                className="btn-primary px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 w-full mx-4"
-              >
-                Save Submission
-              </button>
-            </div>
-          </form>
+            <form
+              onSubmit={handleSubmit}
+              className={`grid grid-cols-1 gap-4 space-y-0 ${isLocal ? "md:grid-cols-2" : ""}`}
+            >
+              <div className={`space-y-4 ${isLocal ? "md:col-span-1" : ""}`}>
+                <div className="form-group">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 required">
+                    Screenshots (Max 3)
+                  </label>
+                  <div className="flex flex-col gap-2">
+                    {[0, 1, 2].map((i) => (
+                      <input
+                        key={i}
+                        type="file"
+                        onChange={(e) => {
+                          const newScreenshots = [...screenshots];
+                          newScreenshots[i] = e.target.files[0];
+                          setScreenshots(newScreenshots);
+                        }}
+                        className="w-full p-2 border-2 border-dashed border-gray-300 rounded-xl bg-white cursor-pointer hover:border-blue-500 hover:shadow-md transition-all duration-200"
+                        accept="image/*"
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Output File (Optional)
+                  </label>
+                  <input
+                    type="file"
+                    onChange={(e) => setOutputFile(e.target.files[0])}
+                    className="w-full p-2 border-2 border-dashed border-gray-300 rounded-xl bg-white cursor-pointer hover:border-blue-500 hover:shadow-md transition-all duration-200"
+                  />
+                </div>
+              </div>
+              {isLocal && (
+                <div className="form-group md:col-span-1">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                    Only for Testing
+                  </h3>
+                  <div className="form-group mb-4">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2 required">
+                      Recording Link
+                    </label>
+                    <input
+                      type="url"
+                      value={recordingLink}
+                      onChange={(e) => setRecordingLink(e.target.value)}
+                      className="w-full p-3 border border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white text-gray-800 placeholder-gray-500 shadow-sm hover:shadow-md transition-shadow duration-200"
+                      placeholder="https://example.com/recording"
+                    />
+                  </div>
+                  <div className="form-group mb-4">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2 required">
+                      Transcription Link
+                    </label>
+                    <input
+                      type="url"
+                      value={transcriptionLink}
+                      onChange={(e) => setTranscriptionLink(e.target.value)}
+                      className="w-full p-3 border border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white text-gray-800 placeholder-gray-500 shadow-sm hover:shadow-md transition-shadow duration-200"
+                      placeholder="https://example.com/transcription"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Conversation Markdown File (Optional)
+                    </label>
+                    <input
+                      type="file"
+                      onChange={(e) => setConversationFile(e.target.files[0])}
+                      className="w-full p-2 border-2 border-dashed border-gray-300 rounded-xl bg-white cursor-pointer hover:border-blue-500 hover:shadow-md transition-all duration-200"
+                      accept=".md,text/markdown"
+                    />
+                  </div>
+                </div>
+              )}
+              <div className="flex justify-end gap-3 md:col-span-2">
+                <button
+                  type="submit"
+                  className="btn-primary px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 w-full mx-4"
+                >
+                  Save Submission
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
       {loading && (
