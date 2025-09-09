@@ -1,6 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
-import dynamic from "next/dynamic";
+import {
+  useRecorderUtils,
+  useRecorderEventCallback,
+} from "@veltdev/react";
+import VeltRecorder from "../components/VeltRecorder";
 
 export default function Home() {
   const [assessmentQuestion, setAssessmentQuestion] = useState("");
@@ -40,10 +44,35 @@ export default function Home() {
   const [isRecording, setIsRecording] = useState(false);
   const [hasStartedRecording, setHasStartedRecording] = useState(false);
   const [hasCompletedRecording, setHasCompletedRecording] = useState(false);
-
-  const LoomButton = dynamic(() => import("../components/LoomButton"), {
-    ssr: false,
-  });
+  
+  // Velt Recorder integration
+  const recorderUtils = useRecorderUtils();
+  const recordingStopped = useRecorderEventCallback("recordingStopped");
+  const recordingDone = useRecorderEventCallback("recordingDone");
+  
+  useEffect(() => {
+    if (recorderUtils) {
+      recorderUtils.disableRecordingMic(); // Screen-only recording
+    }
+  }, [recorderUtils]);
+  
+  useEffect(() => {
+    if (recordingStopped) {
+      setIsChatUnlocked(true);
+      setIsRecording(true);
+      setHasStartedRecording(true);
+    }
+  }, [recordingStopped]);
+  
+  useEffect(() => {
+    if (recordingDone) {
+      setIsRecording(false);
+      setHasCompletedRecording(true);
+      // TODO: Implement retrieval of sharedUrl and transcript from Velt
+      // Example: setRecordingUrl(`https://app.velt.dev/recorder/${recordingDone.recorderId}`);
+      // Fetch transcript accordingly
+    }
+  }, [recordingDone]);
 
   const handleSend = async () => {
     if (!input.trim() || !isChatUnlocked) return;
@@ -86,24 +115,29 @@ export default function Home() {
       });
     }
 
+    const formData = new FormData();
+    formData.append('assessmentQuestion', assessmentQuestion);
+    formData.append('conversationContent', conversationContent);
+    formData.append('transcript', transcript);
+    formData.append('recordingUrl', recordingUrl);
+    screenshots.filter(s => s).forEach((screenshot, index) => {
+      formData.append(`screenshots`, screenshot);
+    });
+    if (outputFile) {
+      formData.append('outputFile', outputFile);
+    }
+
     try {
       const res = await fetch("/api/evaluate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          assessmentQuestion,
-          conversationContent,
-          transcript,
-          screenshots: screenshots.filter((s) => s).join(", "),
-          outputFiles: outputFile ? outputFile.name : "",
-        }),
+        body: formData,
       });
       const data = await res.json();
 
       const saveRes = await fetch("/api/save-evaluation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ evaluation: data.evaluation }),
+        body: JSON.stringify({ data: { evaluation: data.evaluation, metadata: data.metadata } }),
       });
       const saveData = await saveRes.json();
 
@@ -146,33 +180,7 @@ export default function Home() {
             className="w-full flex-1 p-4 border-2 border-gray-300 rounded-md focus:border-blue-500 mb-4"
             placeholder="(Auto-populates in Prod) Enter your assessment task or question here..."
           />
-          <LoomButton
-            onRecordingStart={() => {
-              setIsChatUnlocked(true);
-              setIsRecording(true);
-              setHasStartedRecording(true);
-            }}
-            onRecordingComplete={() => {
-              setIsRecording(false);
-              setHasCompletedRecording(true);
-            }}
-            onInsertClick={async (sharedUrl) => {
-              setRecordingUrl(sharedUrl);
-              try {
-                const res = await fetch("/api/get-transcript", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ url: sharedUrl }),
-                });
-                const data = await res.json();
-                setTranscript(data.transcript);
-                console.log("Recording Link:", sharedUrl);
-                console.log("Transcript:", data.transcript);
-              } catch (err) {
-                console.error("Error fetching transcript:", err);
-              }
-            }}
-          />
+          <VeltRecorder />
         </div>
         <div className={`chat-section flex-1 h-[500px] bg-white rounded-lg shadow-md border border-gray-200 flex flex-col mt-6 md:mt-0 relative ${!hasStartedRecording ? 'pointer-events-none opacity-50 blur-sm' : ''}`}>
           <div className="chat-header p-6 border-b border-gray-200 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-t-lg">

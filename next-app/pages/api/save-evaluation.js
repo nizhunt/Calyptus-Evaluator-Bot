@@ -4,9 +4,9 @@ import { randomUUID } from 'crypto';
 export default async function handler(req, res) {
   try {
     if (req.method === 'POST') {
-      const { evaluation } = req.body;
+      const { data } = req.body;
       const id = randomUUID();
-      const blob = await put(`evaluations/${id}.json`, evaluation, { access: 'public' });
+      const blob = await put(`evaluations/${id}.json`, JSON.stringify(data), { access: 'public' });
       res.status(200).json({ id });
     } else if (req.method === 'GET') {
       const { id } = req.query;

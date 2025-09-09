@@ -25,6 +25,9 @@ export default function Evaluation({ evaluation }) {
     outputQuality,
     overallScore,
     analysis,
+    // Extract metadata for video and files if available
+    videoUrl,
+    submittedFiles,
   } = parsedEval;
 
   return (
@@ -32,6 +35,31 @@ export default function Evaluation({ evaluation }) {
       <h1 className="text-3xl font-bold mb-8 text-center bg-gradient-to-r from-blue-500 to-purple-500 text-transparent bg-clip-text">
         Evaluation Dashboard
       </h1>
+      {videoUrl && submittedFiles && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <h2 className="text-xl font-semibold mb-4">Video Preview</h2>
+            <iframe
+              src={videoUrl.replace("/share/", "/embed/")}
+              frameBorder="0"
+              allowFullScreen
+              className="w-full h-64"
+            ></iframe>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <h2 className="text-xl font-semibold mb-4">Submitted Files</h2>
+            <ul className="list-disc pl-5">
+              {submittedFiles.map((file, index) => (
+                <li key={index}>
+                  <a href={file.url} download className="text-blue-500 hover:underline">
+                    {file.name || `File ${index + 1}`}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
           <h2 className="text-xl font-semibold mb-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white p-2 rounded-t-lg">
