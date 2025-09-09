@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import {
   useRecorderUtils,
   useRecorderEventCallback,
+  VeltRecorderPlayer,
 } from "@veltdev/react";
 import VeltRecorder from "../components/VeltRecorder";
 
@@ -44,35 +45,70 @@ export default function Home() {
   const [isRecording, setIsRecording] = useState(false);
   const [hasStartedRecording, setHasStartedRecording] = useState(false);
   const [hasCompletedRecording, setHasCompletedRecording] = useState(false);
-  
+  const [recorderId, setRecorderId] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
   // Velt Recorder integration
   const recorderUtils = useRecorderUtils();
   const recordingStopped = useRecorderEventCallback("recordingStopped");
   const recordingDone = useRecorderEventCallback("recordingDone");
-  
+
   useEffect(() => {
     if (recorderUtils) {
       recorderUtils.disableRecordingMic(); // Screen-only recording
     }
   }, [recorderUtils]);
-  
+
   useEffect(() => {
     if (recordingStopped) {
       setIsChatUnlocked(true);
       setIsRecording(true);
       setHasStartedRecording(true);
+      setHasCompletedRecording(true);
+      setIsLoading(true);
     }
   }, [recordingStopped]);
   
   useEffect(() => {
     if (recordingDone) {
       setIsRecording(false);
-      setHasCompletedRecording(true);
-      // TODO: Implement retrieval of sharedUrl and transcript from Velt
+      if (recordingDone.recorderId) {
+        setRecorderId(recordingDone.recorderId);
+        // Fetch transcript from Velt
+        fetchTranscriptFromVelt(recordingDone.recorderId);
+      }
+      setIsLoading(false);
+      // TODO: Implement retrieval of sharedUrl from Velt
       // Example: setRecordingUrl(`https://app.velt.dev/recorder/${recordingDone.recorderId}`);
-      // Fetch transcript accordingly
     }
   }, [recordingDone]);
+
+  const fetchTranscriptFromVelt = async (recorderId) => {
+    if (!recorderUtils) {
+      return;
+    }
+    
+    try {
+      const recorderData = await recorderUtils.fetchRecordings({ recorderIds: [recorderId] });
+      
+      if (!recorderData || !Array.isArray(recorderData) || recorderData.length === 0) {
+        return;
+      }
+      
+      const recording = recorderData[0];
+      
+      if (recording.transcription && recording.transcription.transcriptSegments) {
+         const fullTranscript = recording.transcription.transcriptSegments
+           .map(segment => segment.text)
+           .join(' ');
+         
+         // Store transcript for evaluation API usage
+         window.veltTranscript = fullTranscript;
+       }
+    } catch (error) {
+      console.error('Error fetching transcript:', error);
+    }
+  };
 
   const handleSend = async () => {
     if (!input.trim() || !isChatUnlocked) return;
@@ -116,15 +152,17 @@ export default function Home() {
     }
 
     const formData = new FormData();
-    formData.append('assessmentQuestion', assessmentQuestion);
-    formData.append('conversationContent', conversationContent);
-    formData.append('transcript', transcript);
-    formData.append('recordingUrl', recordingUrl);
-    screenshots.filter(s => s).forEach((screenshot, index) => {
-      formData.append(`screenshots`, screenshot);
-    });
+    formData.append("assessmentQuestion", assessmentQuestion);
+    formData.append("conversationContent", conversationContent);
+    formData.append("veltTranscript", window.veltTranscript || '');
+    formData.append("recordingUrl", recordingUrl);
+    screenshots
+      .filter((s) => s)
+      .forEach((screenshot, index) => {
+        formData.append(`screenshots`, screenshot);
+      });
     if (outputFile) {
-      formData.append('outputFile', outputFile);
+      formData.append("outputFile", outputFile);
     }
 
     try {
@@ -137,7 +175,9 @@ export default function Home() {
       const saveRes = await fetch("/api/save-evaluation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: { evaluation: data.evaluation, metadata: data.metadata } }),
+        body: JSON.stringify({
+          data: { evaluation: data.evaluation, metadata: data.metadata },
+        }),
       });
       const saveData = await saveRes.json();
 
@@ -182,7 +222,11 @@ export default function Home() {
           />
           <VeltRecorder />
         </div>
-        <div className={`chat-section flex-1 h-[500px] bg-white rounded-lg shadow-md border border-gray-200 flex flex-col mt-6 md:mt-0 relative ${!hasStartedRecording ? 'pointer-events-none opacity-50 blur-sm' : ''}`}>
+        <div
+          className={`chat-section flex-1 h-[500px] bg-white rounded-lg shadow-md border border-gray-200 flex flex-col mt-6 md:mt-0 relative ${
+            !hasStartedRecording ? "pointer-events-none opacity-50 blur-sm" : ""
+          }`}
+        >
           <div className="chat-header p-6 border-b border-gray-200 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-t-lg">
             <h2 className="text-xl font-semibold">AI Assistant</h2>
             <p className="text-sm">
@@ -268,12 +312,38 @@ export default function Home() {
       >
         <div>
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-            Stop Recording and Insert Video to Submit Test
+            {!hasCompletedRecording 
+              ? "Stop Recording and Insert Video to Submit Test"
+              : "Please provide the required information for your test submission"
+            }
           </h2>
-          <div className={`${!hasCompletedRecording ? 'pointer-events-none opacity-50 blur-sm' : ''}`}>
-            <p className="text-sm text-gray-600 mb-6">
-              Please provide the required information for your test submission
-            </p>
+          <div
+            className={`${
+              !hasCompletedRecording
+                ? "pointer-events-none opacity-50 blur-sm"
+                : ""
+            }`}
+          >
+            {isLoading && (
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-md mb-6">
+                <h3 className="text-lg font-medium mb-2">
+                  Processing Recording...
+                </h3>
+                <div className="flex items-center justify-center p-6">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+                </div>
+              </div>
+            )}
+            {!isLoading && recorderId && hasCompletedRecording && (
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-md mb-6">
+                <h3 className="text-lg font-medium mb-2">Latest Recording</h3>
+                <VeltRecorderPlayer
+                  key={recorderId}
+                  recorderId={recorderId}
+                  summary={false}
+                />
+              </div>
+            )}
             {recordingUrl && (
               <div className="form-group mb-6">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -291,7 +361,9 @@ export default function Home() {
             )}
             <form
               onSubmit={handleSubmit}
-              className={`grid grid-cols-1 gap-4 space-y-0 ${isLocal ? "md:grid-cols-2" : ""}`}
+              className={`grid grid-cols-1 gap-4 space-y-0 ${
+                isLocal ? "md:grid-cols-2" : ""
+              }`}
             >
               <div className={`space-y-4 ${isLocal ? "md:col-span-1" : ""}`}>
                 <div className="form-group">

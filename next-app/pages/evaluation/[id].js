@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { list } from '@vercel/blob';
+import { list } from "@vercel/blob";
 
 export default function Evaluation({ evaluation }) {
   let parsedEval;
@@ -51,7 +51,11 @@ export default function Evaluation({ evaluation }) {
             <ul className="list-disc pl-5">
               {submittedFiles.map((file, index) => (
                 <li key={index}>
-                  <a href={file.url} download className="text-blue-500 hover:underline">
+                  <a
+                    href={file.url}
+                    download
+                    className="text-blue-500 hover:underline"
+                  >
                     {file.name || `File ${index + 1}`}
                   </a>
                 </li>
@@ -70,17 +74,17 @@ export default function Evaluation({ evaluation }) {
             <div
               className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 to-purple-500"
               style={{
-                clipPath: `inset(0 0 ${ 
-                  100 - (helperBotConversation?.score ?? 0) * 10 
+                clipPath: `inset(0 0 ${
+                  100 - (helperBotConversation?.score ?? 0) * 10
                 }% 0)`,
               }}
             ></div>
             <p className="absolute inset-0 flex items-center justify-center text-2xl font-bold">
-              {(helperBotConversation?.score ?? 0)}/10
+              {helperBotConversation?.score ?? 0}/10
             </p>
           </div>
           <p className="text-sm text-gray-600">
-            {helperBotConversation?.comments ?? ''}
+            {helperBotConversation?.comments ?? ""}
           </p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
@@ -92,16 +96,19 @@ export default function Evaluation({ evaluation }) {
             <div
               className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 to-purple-500"
               style={{
-                clipPath: `inset(0 0 ${100 - (outputQuality?.score ?? 0) * 10}% 0)`,
+                clipPath: `inset(0 0 ${
+                  100 - (outputQuality?.score ?? 0) * 10
+                }% 0)`,
               }}
             ></div>
             <p className="absolute inset-0 flex items-center justify-center text-2xl font-bold">
-              {(outputQuality?.score ?? 0)}/10
+              {outputQuality?.score ?? 0}/10
             </p>
           </div>
-          <p className="text-sm text-gray-600">{outputQuality?.comments ?? ''}</p>
+          <p className="text-sm text-gray-600">
+            {outputQuality?.comments ?? ""}
+          </p>
         </div>
-        
       </div>
       <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8">
         <h2 className="text-2xl font-semibold mb-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white p-2 rounded-t-lg">
@@ -111,10 +118,12 @@ export default function Evaluation({ evaluation }) {
           <div className="absolute inset-0 rounded-full bg-gray-200"></div>
           <div
             className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 to-purple-500"
-            style={{ clipPath: `inset(0 0 ${100 - (overallScore ?? 0) * 10}% 0)` }}
+            style={{
+              clipPath: `inset(0 0 ${100 - (overallScore ?? 0) * 10}% 0)`,
+            }}
           ></div>
           <p className="absolute inset-0 flex items-center justify-center text-3xl font-bold">
-            {(overallScore ?? 0)}/10
+            {overallScore ?? 0}/10
           </p>
         </div>
       </div>
@@ -146,7 +155,7 @@ export default function Evaluation({ evaluation }) {
       </div>
       <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mt-6">
         <h2 className="text-xl font-semibold mb-4">Recommendation</h2>
-        <p>{analysis?.recommendation ?? ''}</p>
+        <p>{analysis?.recommendation ?? ""}</p>
       </div>
     </div>
   );

@@ -11,7 +11,6 @@ This prompt is designed to evaluate a candidate's performance on an assessment t
 3. **Uploaded Files**: All outputs submitted by the candidate including:
    - Screenshots (up to 3)
    - Output files (JSON, PDF, MD, or other formats)
-   - Transcription link
 
 **Assumptions on Inputs**:
 
