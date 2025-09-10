@@ -30,6 +30,7 @@ export default async function handler(req, res) {
     const conversationContent = fields.conversationContent[0];
     const veltTranscript = fields.veltTranscript?.[0] || '';
     const recordingUrl = fields.recordingUrl[0];
+    const recorderId = fields.recorderId?.[0] || '';
 
     // Process screenshots as base64 for GPT-4o vision
     const screenshotImages = [];
@@ -39,7 +40,7 @@ export default async function handler(req, res) {
     for (const screenshot of screenshotArray) {
       if (screenshot && screenshot.filepath) {
         // Upload to blob for storage/reference
-        const blob = await put(screenshot.originalFilename, fs.createReadStream(screenshot.filepath), { access: 'public' });
+        const blob = await put(screenshot.originalFilename, fs.createReadStream(screenshot.filepath), { access: 'public', addRandomSuffix: true });
         
         // Convert to base64 for GPT-4o
         const imageBuffer = fs.readFileSync(screenshot.filepath);
@@ -61,7 +62,7 @@ export default async function handler(req, res) {
     if (files.outputFile) {
       const outputFile = files.outputFile[0];
       // Upload to blob for storage
-      const blob = await put(outputFile.originalFilename, fs.createReadStream(outputFile.filepath), { access: 'public' });
+      const blob = await put(outputFile.originalFilename, fs.createReadStream(outputFile.filepath), { access: 'public', addRandomSuffix: true });
       outputFileUrl = blob.url;
       
       // Read file content based on type
@@ -118,6 +119,8 @@ export default async function handler(req, res) {
         ...screenshotImages.map((_, index) => ({ name: `screenshot_${index + 1}`, type: 'image', processed: 'base64_analysis' })),
         ...(outputFileUrl ? [{ name: 'outputFile', url: outputFileUrl, contentProcessed: outputFileContent ? 'yes' : 'no' }] : [])
       ],
+      recorderId: recorderId,
+      recordingUrl: recordingUrl,
       modelUsed: 'gpt-4o',
       multimodalProcessing: true
     };

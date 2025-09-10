@@ -1,3 +1,95 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Velt Recorder Overlay Fix */
+/* Ensure Velt recording controls don't block page interactions */
+.velt-recorder-control-panel {
+  pointer-events: auto !important;
+  z-index: 1000 !important;
+}
+
+/* Ensure the main content remains interactive during recording */
+.velt-recorder-overlay {
+  pointer-events: none !important;
+}
+
+/* Allow interactions with specific Velt elements */
+.velt-recorder-control-panel * {
+  pointer-events: auto !important;
+}
+
+/* Ensure recording controls are visible and accessible */
+[data-velt-recorder-control-panel] {
+  position: fixed !important;
+  top: 20px !important;
+  right: 20px !important;
+  z-index: 9999 !important;
+  pointer-events: auto !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  display: block !important;
+}
+
+/* Prevent recording overlay from blocking page content */
+[data-velt-recorder-overlay] {
+  pointer-events: none !important;
+}
+
+/* Ensure page content remains clickable during recording */
+body.velt-recording {
+  pointer-events: auto !important;
+}
+
+body.velt-recording * {
+  pointer-events: auto !important;
+}
+
+/* Override any Velt styles that might block interactions */
+.velt-recorder-screen-overlay {
+  pointer-events: none !important;
+}
+
+/* Ensure all Velt control elements are visible and functional */
+.velt-recorder-control-panel,
+[class*="velt-recorder"],
+[class*="VeltRecorder"],
+[data-velt*="recorder"],
+velt-recorder-control-panel,
+VeltRecorderControlPanel,
+[data-testid*="recorder"],
+[role="dialog"][aria-label*="record"] {
+  visibility: visible !important;
+  opacity: 1 !important;
+  display: block !important;
+  pointer-events: auto !important;
+  transform: none !important;
+  clip: auto !important;
+  clip-path: none !important;
+}
+
+/* Specific targeting for floating control panel */
+.velt-recorder-control-panel[data-mode="floating"] {
+  position: fixed !important;
+  top: 20px !important;
+  right: 20px !important;
+  z-index: 10000 !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Force visibility for any Velt elements that might be hidden */
+* [class*="velt"],
+* [data-velt],
+* velt-* {
+  max-height: none !important;
+  max-width: none !important;
+  height: auto !important;
+  width: auto !important;
+}
+
+/* Ensure Velt control elements are properly sized and visible */
+[class*="velt-recorder-control"] {
+  min-width: 100px !important;
+  min-height: 40px !important;
+}

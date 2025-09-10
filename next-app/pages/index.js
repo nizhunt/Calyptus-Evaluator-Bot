@@ -91,6 +91,7 @@ export default function Home() {
 
   // Velt Recorder integration
   const recorderUtils = useRecorderUtils();
+  const recordingStarted = useRecorderEventCallback("recordingStarted");
   const recordingStopped = useRecorderEventCallback("recordingStopped");
   const recordingDone = useRecorderEventCallback("recordingDone");
 
@@ -101,10 +102,15 @@ export default function Home() {
   }, [recorderUtils]);
 
   useEffect(() => {
-    if (recordingStopped) {
+    if (recordingStarted) {
       setIsChatUnlocked(true);
       setIsRecording(true);
       setHasStartedRecording(true);
+    }
+  }, [recordingStarted]);
+
+  useEffect(() => {
+    if (recordingStopped) {
       setHasCompletedRecording(true);
       setIsLoading(true);
     }
@@ -197,6 +203,7 @@ export default function Home() {
     formData.append("conversationContent", conversationContent);
     formData.append("veltTranscript", window.veltTranscript || '');
     formData.append("recordingUrl", recordingUrl);
+    formData.append("recorderId", recorderId || '');
     screenshots
       .filter((s) => s)
       .forEach((screenshot, index) => {
@@ -342,8 +349,13 @@ export default function Home() {
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                className="flex-1 p-4 border-2 border-gray-300 rounded-full focus:border-blue-500 resize-none min-h-[48px] max-h-[120px] bg-white text-gray-800 placeholder-gray-500"
-                placeholder="Ask a question about the project..."
+                disabled={!isChatUnlocked}
+                className={`flex-1 p-4 border-2 rounded-full resize-none min-h-[48px] max-h-[120px] text-gray-800 placeholder-gray-500 ${
+                  !isChatUnlocked 
+                    ? 'border-gray-200 bg-gray-100 cursor-not-allowed' 
+                    : 'border-gray-300 bg-white focus:border-blue-500'
+                }`}
+                placeholder={!isChatUnlocked ? "Start recording to unlock chat..." : "Ask a question about the project..."}
                 rows={1}
                 onKeyPress={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
@@ -354,7 +366,12 @@ export default function Home() {
               />
               <button
                 onClick={handleSend}
-                className="send-button w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 text-white flex items-center justify-center hover:from-blue-600 hover:to-purple-600"
+                disabled={!isChatUnlocked}
+                className={`send-button w-12 h-12 rounded-full text-white flex items-center justify-center ${
+                  !isChatUnlocked
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600'
+                }`}
               >
                 ➤
               </button>

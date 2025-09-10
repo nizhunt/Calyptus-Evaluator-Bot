@@ -1,10 +1,33 @@
 import { useState } from "react";
 import { list } from "@vercel/blob";
+import { VeltRecorderPlayer } from "@veltdev/react";
 
 export default function Evaluation({ evaluation }) {
+  let parsedData;
+  try {
+    parsedData = JSON.parse(evaluation);
+  } catch (e) {
+    parsedData = null;
+  }
+
+  if (!parsedData) {
+    return (
+      <div className="container mx-auto p-6">
+        <h1 className="text-2xl font-bold mb-4">Evaluation Result</h1>
+        <pre className="whitespace-pre-wrap bg-gray-100 p-4 rounded">
+          {evaluation}
+        </pre>
+      </div>
+    );
+  }
+
+  // Handle both old and new data structures
+  const evaluationData = parsedData.data ? parsedData.data.evaluation : parsedData;
+  const metadata = parsedData.data ? parsedData.data.metadata : parsedData.metadata;
+  
   let parsedEval;
   try {
-    parsedEval = JSON.parse(evaluation);
+    parsedEval = typeof evaluationData === 'string' ? JSON.parse(evaluationData) : evaluationData;
   } catch (e) {
     parsedEval = null;
   }
@@ -14,7 +37,7 @@ export default function Evaluation({ evaluation }) {
       <div className="container mx-auto p-6">
         <h1 className="text-2xl font-bold mb-4">Evaluation Result</h1>
         <pre className="whitespace-pre-wrap bg-gray-100 p-4 rounded">
-          {evaluation}
+          {typeof evaluationData === 'string' ? evaluationData : JSON.stringify(evaluationData, null, 2)}
         </pre>
       </div>
     );
@@ -29,12 +52,34 @@ export default function Evaluation({ evaluation }) {
     videoUrl,
     submittedFiles,
   } = parsedEval;
+  
+  const recorderId = metadata?.recorderId;
+  const recordingUrl = metadata?.recordingUrl;
 
   return (
     <div className="container mx-auto min-h-screen p-6 bg-white text-gray-800">
       <h1 className="text-3xl font-bold mb-8 text-center bg-gradient-to-r from-blue-500 to-purple-500 text-transparent bg-clip-text">
         Evaluation Dashboard
       </h1>
+      
+      {/* Velt Recorder Player Section */}
+      {recorderId && (
+        <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8">
+          <h2 className="text-xl font-semibold mb-4">Screen Recording</h2>
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <VeltRecorderPlayer
+              recorderId={recorderId}
+              summary={false}
+            />
+          </div>
+          {recordingUrl && (
+            <div className="mt-4 text-sm text-gray-600">
+              <p>Recording URL: <a href={recordingUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">{recordingUrl}</a></p>
+            </div>
+          )}
+        </div>
+      )}
+      
       {videoUrl && submittedFiles && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
