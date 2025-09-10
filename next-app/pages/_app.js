@@ -1,5 +1,4 @@
 import "../styles/globals.css";
-import { AppProps } from "next/app";
 import { VeltProvider } from "@veltdev/react";
 import VeltAuth from "../components/VeltAuth";
 import VeltDocument from "../components/VeltDocument";

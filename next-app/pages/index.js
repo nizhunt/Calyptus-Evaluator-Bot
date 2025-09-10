@@ -29,7 +29,7 @@ export default function Home() {
   const chatMessagesRef = useRef(null);
   const submitFormRef = useRef(null);
   const router = useRouter();
-  
+
   // JWT Token handling states
   const [employerName, setEmployerName] = useState("");
   const [isCustomTest, setIsCustomTest] = useState(false);
@@ -51,16 +51,16 @@ export default function Home() {
   useEffect(() => {
     const handleJWTToken = async () => {
       const { token } = router.query;
-      
+
       if (token) {
         try {
           // Validate and decode JWT token
-          const response = await fetch('/api/validate-token', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token })
+          const response = await fetch("/api/validate-token", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token }),
           });
-          
+
           if (response.ok) {
             const data = await response.json();
             setTokenData(data);
@@ -69,11 +69,11 @@ export default function Home() {
             setIsCustomTest(true);
             // Make the assessment question read-only for custom tests
           } else {
-            console.error('Invalid token');
+            console.error("Invalid token");
             // Optionally redirect to error page or show error message
           }
         } catch (error) {
-          console.error('Error validating token:', error);
+          console.error("Error validating token:", error);
         }
       }
     };
@@ -115,7 +115,7 @@ export default function Home() {
       setIsLoading(true);
     }
   }, [recordingStopped]);
-  
+
   useEffect(() => {
     if (recordingDone) {
       setIsRecording(false);
@@ -125,7 +125,7 @@ export default function Home() {
         fetchTranscriptFromVelt(recordingDone.recorderId);
       }
       setIsLoading(false);
-      // TODO: Implement retrieval of sharedUrl from Velt
+
       // Example: setRecordingUrl(`https://app.velt.dev/recorder/${recordingDone.recorderId}`);
     }
   }, [recordingDone]);
@@ -134,26 +134,35 @@ export default function Home() {
     if (!recorderUtils) {
       return;
     }
-    
+
     try {
-      const recorderData = await recorderUtils.fetchRecordings({ recorderIds: [recorderId] });
-      
-      if (!recorderData || !Array.isArray(recorderData) || recorderData.length === 0) {
+      const recorderData = await recorderUtils.fetchRecordings({
+        recorderIds: [recorderId],
+      });
+
+      if (
+        !recorderData ||
+        !Array.isArray(recorderData) ||
+        recorderData.length === 0
+      ) {
         return;
       }
-      
+
       const recording = recorderData[0];
-      
-      if (recording.transcription && recording.transcription.transcriptSegments) {
-         const fullTranscript = recording.transcription.transcriptSegments
-           .map(segment => segment.text)
-           .join(' ');
-         
-         // Store transcript for evaluation API usage
-         window.veltTranscript = fullTranscript;
-       }
+
+      if (
+        recording.transcription &&
+        recording.transcription.transcriptSegments
+      ) {
+        const fullTranscript = recording.transcription.transcriptSegments
+          .map((segment) => segment.text)
+          .join(" ");
+
+        // Store transcript for evaluation API usage
+        window.veltTranscript = fullTranscript;
+      }
     } catch (error) {
-      console.error('Error fetching transcript:', error);
+      console.error("Error fetching transcript:", error);
     }
   };
 
@@ -201,9 +210,9 @@ export default function Home() {
     const formData = new FormData();
     formData.append("assessmentQuestion", assessmentQuestion);
     formData.append("conversationContent", conversationContent);
-    formData.append("veltTranscript", window.veltTranscript || '');
+    formData.append("veltTranscript", window.veltTranscript || "");
     formData.append("recordingUrl", recordingUrl);
-    formData.append("recorderId", recorderId || '');
+    formData.append("recorderId", recorderId || "");
     screenshots
       .filter((s) => s)
       .forEach((screenshot, index) => {
@@ -248,7 +257,12 @@ export default function Home() {
         />
         {isCustomTest && employerName && (
           <div className="text-center mt-2">
-            <p className="text-sm text-gray-600">Assessment from: <span className="font-semibold text-blue-600">{employerName}</span></p>
+            <p className="text-sm text-gray-600">
+              Assessment from:{" "}
+              <span className="font-semibold text-blue-600">
+                {employerName}
+              </span>
+            </p>
           </div>
         )}
       </div>
@@ -269,13 +283,19 @@ export default function Home() {
           </ul>
           <textarea
             value={assessmentQuestion}
-            onChange={(e) => !isCustomTest && setAssessmentQuestion(e.target.value)}
+            onChange={(e) =>
+              !isCustomTest && setAssessmentQuestion(e.target.value)
+            }
             className={`w-full flex-1 p-4 border-2 rounded-md mb-4 ${
-              isCustomTest 
-                ? 'border-blue-300 bg-blue-50 cursor-not-allowed' 
-                : 'border-gray-300 focus:border-blue-500'
+              isCustomTest
+                ? "border-blue-300 bg-blue-50 cursor-not-allowed"
+                : "border-gray-300 focus:border-blue-500"
             }`}
-            placeholder={isCustomTest ? "Assessment question loaded from custom link" : "(Auto-populates in Prod) Enter your assessment task or question here..."}
+            placeholder={
+              isCustomTest
+                ? "Assessment question loaded from custom link"
+                : "(Auto-populates in Prod) Enter your assessment task or question here..."
+            }
             readOnly={isCustomTest}
           />
           {isCustomTest && (
@@ -351,11 +371,15 @@ export default function Home() {
                 onChange={(e) => setInput(e.target.value)}
                 disabled={!isChatUnlocked}
                 className={`flex-1 p-4 border-2 rounded-full resize-none min-h-[48px] max-h-[120px] text-gray-800 placeholder-gray-500 ${
-                  !isChatUnlocked 
-                    ? 'border-gray-200 bg-gray-100 cursor-not-allowed' 
-                    : 'border-gray-300 bg-white focus:border-blue-500'
+                  !isChatUnlocked
+                    ? "border-gray-200 bg-gray-100 cursor-not-allowed"
+                    : "border-gray-300 bg-white focus:border-blue-500"
                 }`}
-                placeholder={!isChatUnlocked ? "Start recording to unlock chat..." : "Ask a question about the project..."}
+                placeholder={
+                  !isChatUnlocked
+                    ? "Start recording to unlock chat..."
+                    : "Ask a question about the project..."
+                }
                 rows={1}
                 onKeyPress={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
@@ -369,8 +393,8 @@ export default function Home() {
                 disabled={!isChatUnlocked}
                 className={`send-button w-12 h-12 rounded-full text-white flex items-center justify-center ${
                   !isChatUnlocked
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600'
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
                 }`}
               >
                 ➤
@@ -385,10 +409,9 @@ export default function Home() {
       >
         <div>
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-            {!hasCompletedRecording 
+            {!hasCompletedRecording
               ? "Stop Recording and Insert Video to Submit Test"
-              : "Please provide the required information for your test submission"
-            }
+              : "Please provide the required information for your test submission"}
           </h2>
           <div
             className={`${
