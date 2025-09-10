@@ -29,6 +29,11 @@ export default function Home() {
   const chatMessagesRef = useRef(null);
   const submitFormRef = useRef(null);
   const router = useRouter();
+  
+  // JWT Token handling states
+  const [employerName, setEmployerName] = useState("");
+  const [isCustomTest, setIsCustomTest] = useState(false);
+  const [tokenData, setTokenData] = useState(null);
 
   useEffect(() => {
     if (chatMessagesRef.current) {
@@ -41,6 +46,42 @@ export default function Home() {
     setIsLocal(local);
     setIsChatUnlocked(local);
   }, []);
+
+  // JWT Token handling effect
+  useEffect(() => {
+    const handleJWTToken = async () => {
+      const { token } = router.query;
+      
+      if (token) {
+        try {
+          // Validate and decode JWT token
+          const response = await fetch('/api/validate-token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token })
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            setTokenData(data);
+            setEmployerName(data.employerName);
+            setAssessmentQuestion(data.question);
+            setIsCustomTest(true);
+            // Make the assessment question read-only for custom tests
+          } else {
+            console.error('Invalid token');
+            // Optionally redirect to error page or show error message
+          }
+        } catch (error) {
+          console.error('Error validating token:', error);
+        }
+      }
+    };
+
+    if (router.isReady) {
+      handleJWTToken();
+    }
+  }, [router.isReady, router.query]);
 
   const [isRecording, setIsRecording] = useState(false);
   const [hasStartedRecording, setHasStartedRecording] = useState(false);
@@ -198,6 +239,11 @@ export default function Home() {
           alt="Calyptus Logo"
           className="h-16 mx-auto"
         />
+        {isCustomTest && employerName && (
+          <div className="text-center mt-2">
+            <p className="text-sm text-gray-600">Assessment from: <span className="font-semibold text-blue-600">{employerName}</span></p>
+          </div>
+        )}
       </div>
       <div className="flex flex-col md:flex-row gap-6 flex-1">
         <div className="question-section flex flex-col bg-white p-6 rounded-lg shadow-md border border-gray-200 md:w-1/3">
@@ -216,10 +262,20 @@ export default function Home() {
           </ul>
           <textarea
             value={assessmentQuestion}
-            onChange={(e) => setAssessmentQuestion(e.target.value)}
-            className="w-full flex-1 p-4 border-2 border-gray-300 rounded-md focus:border-blue-500 mb-4"
-            placeholder="(Auto-populates in Prod) Enter your assessment task or question here..."
+            onChange={(e) => !isCustomTest && setAssessmentQuestion(e.target.value)}
+            className={`w-full flex-1 p-4 border-2 rounded-md mb-4 ${
+              isCustomTest 
+                ? 'border-blue-300 bg-blue-50 cursor-not-allowed' 
+                : 'border-gray-300 focus:border-blue-500'
+            }`}
+            placeholder={isCustomTest ? "Assessment question loaded from custom link" : "(Auto-populates in Prod) Enter your assessment task or question here..."}
+            readOnly={isCustomTest}
           />
+          {isCustomTest && (
+            <div className="text-xs text-blue-600 mb-4">
+              ✓ This assessment question was provided by {employerName}
+            </div>
+          )}
           <VeltRecorder />
         </div>
         <div
