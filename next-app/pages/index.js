@@ -34,6 +34,7 @@ export default function Home() {
   const [employerName, setEmployerName] = useState("");
   const [isCustomTest, setIsCustomTest] = useState(false);
   const [tokenData, setTokenData] = useState(null);
+  const [customInstructions, setCustomInstructions] = useState("");
 
   useEffect(() => {
     if (chatMessagesRef.current) {
@@ -66,6 +67,7 @@ export default function Home() {
             setTokenData(data);
             setEmployerName(data.employerName);
             setAssessmentQuestion(data.question);
+            setCustomInstructions(data.customInstructions || "");
             setIsCustomTest(true);
             // Make the assessment question read-only for custom tests
           } else {
@@ -213,6 +215,7 @@ export default function Home() {
     formData.append("veltTranscript", window.veltTranscript || "");
     formData.append("recordingUrl", recordingUrl);
     formData.append("recorderId", recorderId || "");
+    formData.append("customInstructions", customInstructions || "");
     screenshots
       .filter((s) => s)
       .forEach((screenshot, index) => {

@@ -75,34 +75,11 @@ export default function VeltRecorder() {
     </button>
   );
 
-  const StopRecordingButton = () => (
-    <button
-      onClick={() => {
-        if (recorderUtils) {
-          recorderUtils.stopRecording();
-        }
-      }}
-      className="inline-flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-xs sm:text-sm font-medium rounded-lg border border-red-600 min-h-[36px] sm:min-h-[40px] w-full sm:w-auto"
-    >
-      <svg
-        className="h-3 w-3 sm:h-4 sm:w-4 text-white flex-shrink-0"
-        xmlns="http://www.w3.org/2000/svg"
-        fill="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <rect x="6" y="6" width="12" height="12" rx="2" />
-      </svg>
-      <span className="truncate">Stop Recording</span>
-    </button>
-  );
-
   return (
     <div className="recorder-container">
       <div className="toolbar">
         {!isRecorderReady ? (
           <LoadingButton />
-        ) : isRecording ? (
-          <StopRecordingButton />
         ) : (
           <VeltRecorderTool type="screen" buttonLabel="Start Recording Now" />
         )}

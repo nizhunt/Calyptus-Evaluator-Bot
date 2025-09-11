@@ -1,8 +1,8 @@
 import fs from "fs";
 import path from "path";
 import OpenAI from "openai";
-import formidable from 'formidable';
-import { put } from '@vercel/blob';
+import formidable from "formidable";
+import { put } from "@vercel/blob";
 
 export const config = {
   api: {
@@ -28,51 +28,93 @@ export default async function handler(req, res) {
 
     const assessmentQuestion = fields.assessmentQuestion[0];
     const conversationContent = fields.conversationContent[0];
-    const veltTranscript = fields.veltTranscript?.[0] || '';
+    const veltTranscript = fields.veltTranscript?.[0] || "";
     const recordingUrl = fields.recordingUrl[0];
-    const recorderId = fields.recorderId?.[0] || '';
+    const recorderId = fields.recorderId?.[0] || "";
+    const customInstructions = fields.customInstructions?.[0] || "";
 
     // Process screenshots as base64 for GPT-4o vision
     const screenshotImages = [];
     const screenshots = files.screenshots || [];
-    const screenshotArray = Array.isArray(screenshots) ? screenshots : [screenshots];
-    
+    const screenshotArray = Array.isArray(screenshots)
+      ? screenshots
+      : [screenshots];
+
     for (const screenshot of screenshotArray) {
       if (screenshot && screenshot.filepath) {
         // Upload to blob for storage/reference
-        const blob = await put(screenshot.originalFilename, fs.createReadStream(screenshot.filepath), { access: 'public', addRandomSuffix: true });
-        
+        const blob = await put(
+          screenshot.originalFilename,
+          fs.createReadStream(screenshot.filepath),
+          { access: "public", addRandomSuffix: true }
+        );
+
         // Convert to base64 for GPT-4o
         const imageBuffer = fs.readFileSync(screenshot.filepath);
-        const base64Image = imageBuffer.toString('base64');
-        const mimeType = screenshot.mimetype || 'image/png';
-        
+        const base64Image = imageBuffer.toString("base64");
+        const mimeType = screenshot.mimetype || "image/png";
+
         screenshotImages.push({
           type: "image_url",
           image_url: {
-            url: `data:${mimeType};base64,${base64Image}`
-          }
+            url: `data:${mimeType};base64,${base64Image}`,
+          },
         });
       }
     }
 
     // Process output file content
-    let outputFileContent = '';
-    let outputFileUrl = '';
+    let outputFileContent = "";
+    let outputFileUrl = "";
+    let outputFileForAPI = null; // New: for PDF processing
+    
     if (files.outputFile) {
       const outputFile = files.outputFile[0];
       // Upload to blob for storage
-      const blob = await put(outputFile.originalFilename, fs.createReadStream(outputFile.filepath), { access: 'public', addRandomSuffix: true });
+      const blob = await put(
+        outputFile.originalFilename,
+        fs.createReadStream(outputFile.filepath),
+        { access: "public", addRandomSuffix: true }
+      );
       outputFileUrl = blob.url;
-      
+
       // Read file content based on type
-      const fileExtension = path.extname(outputFile.originalFilename).toLowerCase();
-      if (['.json', '.md', '.txt', '.js', '.py', '.html', '.css'].includes(fileExtension)) {
+      const fileExtension = path
+        .extname(outputFile.originalFilename)
+        .toLowerCase();
+      
+      if (fileExtension === ".pdf") {
+        // Handle PDF files for OpenAI multimodal API
         try {
-          outputFileContent = fs.readFileSync(outputFile.filepath, 'utf8');
+          const pdfBuffer = fs.readFileSync(outputFile.filepath);
+          const base64Pdf = pdfBuffer.toString("base64");
+          
+          // Check file size (32MB limit)
+          if (pdfBuffer.length > 32 * 1024 * 1024) {
+            outputFileContent = "PDF file too large (>32MB). Please use a smaller file.";
+          } else {
+            outputFileForAPI = {
+              type: "text",
+              text: `data:application/pdf;base64,${base64Pdf}`
+            };
+            
+            outputFileContent = `PDF file uploaded: ${outputFile.originalFilename} (${Math.round(pdfBuffer.length / 1024)}KB)`;
+          }
+        } catch (error) {
+          outputFileContent = `Error processing PDF: ${error.message}`;
+        }
+      } else if (
+        [".json", ".md", ".txt", ".js", ".py", ".html", ".css"].includes(
+          fileExtension
+        )
+      ) {
+        try {
+          outputFileContent = fs.readFileSync(outputFile.filepath, "utf8");
           // Truncate if too large (keep under 50k characters)
           if (outputFileContent.length > 50000) {
-            outputFileContent = outputFileContent.substring(0, 50000) + '\n\n[Content truncated due to length]';
+            outputFileContent =
+              outputFileContent.substring(0, 50000) +
+              "\n\n[Content truncated due to length]";
           }
         } catch (error) {
           outputFileContent = `Error reading file content: ${error.message}`;
@@ -97,16 +139,40 @@ export default async function handler(req, res) {
           .replace("[INSERT_ASSESSMENT_QUESTION]", assessmentQuestion)
           .replace("[INSERT_CONVERSATION_MARKDOWN]", conversationContent)
           .replace("[INSERT_TRANSCRIPT_CONTENT]", veltTranscript)
-          .replace("[INSERT_SCREENSHOT_DESCRIPTIONS_OR_LINKS]", screenshotImages.length > 0 ? "Screenshots provided below for visual analysis" : "No screenshots provided")
-          .replace("[INSERT_OUTPUT_FILE_DESCRIPTIONS_OR_CONTENT]", outputFileContent || "No output file provided")
+          .replace(
+            "[INSERT_SCREENSHOT_DESCRIPTIONS_OR_LINKS]",
+            screenshotImages.length > 0
+              ? "Screenshots provided below for visual analysis"
+              : "No screenshots provided"
+          )
+          .replace(
+            "[INSERT_OUTPUT_FILE_DESCRIPTIONS_OR_CONTENT]",
+            outputFileContent || "No output file provided"
+          )
+          .replace(
+            "[INSERT_CUSTOM_INSTRUCTIONS]",
+            customInstructions || "No custom instructions provided"
+          ),
       },
-      ...screenshotImages
+      ...screenshotImages,
     ];
+
+    // Add PDF content if present
+    if (outputFileForAPI) {
+      messageContent.push({
+        type: "text",
+        text: `Please analyze this PDF document:\n${outputFileForAPI.text}`
+      });
+    }
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
-        { role: "system", content: "You are an AI evaluator with vision capabilities. Analyze all provided materials including text, images, and file contents to provide comprehensive evaluation." },
+        {
+          role: "system",
+          content:
+            "You are an AI evaluator with vision capabilities. Analyze all provided materials including text, images, and file contents to provide comprehensive evaluation.",
+        },
         { role: "user", content: messageContent },
       ],
       max_tokens: 4000,
@@ -116,13 +182,25 @@ export default async function handler(req, res) {
 
     const metadata = {
       submittedFiles: [
-        ...screenshotImages.map((_, index) => ({ name: `screenshot_${index + 1}`, type: 'image', processed: 'base64_analysis' })),
-        ...(outputFileUrl ? [{ name: 'outputFile', url: outputFileUrl, contentProcessed: outputFileContent ? 'yes' : 'no' }] : [])
+        ...screenshotImages.map((_, index) => ({
+          name: `screenshot_${index + 1}`,
+          type: "image",
+          processed: "base64_analysis",
+        })),
+        ...(outputFileUrl
+          ? [
+              {
+                name: "outputFile",
+                url: outputFileUrl,
+                contentProcessed: outputFileContent ? "yes" : "no",
+              },
+            ]
+          : []),
       ],
       recorderId: recorderId,
       recordingUrl: recordingUrl,
-      modelUsed: 'gpt-4o',
-      multimodalProcessing: true
+      modelUsed: "gpt-4o",
+      multimodalProcessing: true,
     };
 
     res.status(200).json({ evaluation, metadata });
