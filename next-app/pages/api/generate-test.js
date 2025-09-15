@@ -84,7 +84,10 @@ export default function handler(req, res) {
       expiresIn || "infinity"
     );
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3001";
+    const baseUrl =
+      process.env.VERCEL_ENV === "production"
+        ? process.env.BASE_URL_PROD
+        : process.env.BASE_URL_LOCAL;
     const testUrl = `${baseUrl}/?token=${token}`;
 
     res.status(200).json({
