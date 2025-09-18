@@ -178,14 +178,15 @@ export default function GuidedTour({ onComplete }) {
   const handleNext = () => {
     if (currentStep < tourSteps.length - 1) {
       setCurrentStep(currentStep + 1);
-      // Reset dragged state and position so modal can re-center on next step
-      setHasBeenDragged(false);
-      // Reset to center position
-      if (typeof window !== 'undefined') {
-        setModalPosition({
-          x: window.innerWidth / 2,
-          y: Math.max(0, (window.innerHeight - 200) / 2)
-        });
+      // Only reset position if modal hasn't been dragged by user
+      if (!hasBeenDragged) {
+        // Reset to center position
+        if (typeof window !== 'undefined') {
+          setModalPosition({
+            x: window.innerWidth / 2,
+            y: Math.max(0, (window.innerHeight - 200) / 2)
+          });
+        }
       }
     } else {
       handleComplete();
