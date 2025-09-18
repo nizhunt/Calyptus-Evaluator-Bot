@@ -5,3 +5,142 @@
 .snippyly-recording-preview-steps-dialog {
   max-width: none !important;
 }
+
+/* Ensure tour modal is always on top */
+.tour-modal {
+  position: fixed !important;
+  z-index: 2147483647 !important; /* Maximum possible z-index */
+  background-color: white !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  user-select: none !important;
+  isolation: isolate !important;
+}
+
+/* Ensure tour modal wrapper has maximum z-index */
+.tour-modal-wrapper {
+  z-index: 2147483646 !important;
+  pointer-events: none !important;
+  isolation: isolate !important;
+}
+
+/* Tour overlay - prevent interactions with everything except modal */
+.tour-overlay {
+  z-index: 2147483645 !important;
+  pointer-events: auto !important;
+}
+
+/* Ensure highlighted elements don't interfere */
+.tour-highlight {
+  position: relative !important;
+  z-index: 2147483644 !important; /* Just below modal wrapper */
+  outline: 4px solid #3b82f6 !important;
+  outline-offset: 4px !important;
+  background-color: rgba(59, 130, 246, 0.2) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.4) !important;
+  transition: all 0.3s ease !important;
+  transform: scale(1.02) !important;
+}
+
+/* Ensure highlighted elements are visible above other content */
+.tour-highlight * {
+  pointer-events: auto !important;
+}
+
+/* Add animation for highlighting */
+@keyframes tour-highlight-pulse {
+  0% {
+    box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(59, 130, 246, 0.2);
+  }
+  100% {
+    box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.4);
+  }
+}
+
+.tour-highlight {
+  animation: tour-highlight-pulse 2s infinite !important;
+}
+
+/* Bounce animation for tour modal */
+@keyframes tour-modal-bounce {
+  0% {
+    transform: translate(-50%, 100vh);
+    opacity: 0;
+  }
+  60% {
+    transform: translate(-50%, -20px);
+    opacity: 1;
+  }
+  80% {
+    transform: translate(-50%, 10px);
+  }
+  100% {
+    transform: translate(-50%, 0);
+  }
+}
+
+.tour-modal.bounce-in {
+  animation: tour-modal-bounce 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* Create a spotlight effect for highlighted elements */
+.tour-active .tour-highlight::before {
+  content: '' !important;
+  position: absolute !important;
+  top: -20px !important;
+  left: -20px !important;
+  right: -20px !important;
+  bottom: -20px !important;
+  background: radial-gradient(circle at center, rgba(59, 130, 246, 0.1) 0%, transparent 70%) !important;
+  z-index: -1 !important;
+  border-radius: 12px !important;
+  pointer-events: none !important;
+}
+
+/* Override Velt components to ensure tour modal is always on top */
+[class*="velt-"], 
+[class*="snippyly-"] {
+  z-index: auto !important;
+}
+
+/* Specifically target Velt floating control panel */
+.velt-recorder-control-panel {
+  z-index: 1000 !important; /* Lower than tour modal */
+}
+
+/* Velt recorder overlay and tools */
+.velt-recorder-overlay,
+.velt-recorder-tool,
+.velt-recorder-button {
+  z-index: 1000 !important; /* Lower than tour modal */
+}
+
+/* Velt player components */
+.velt-recorder-player,
+[class*="velt-recorder-player"] {
+  z-index: 1000 !important; /* Lower than tour modal */
+}
+
+/* Snippyly recording preview */
+.snippyly-recording-preview-steps-dialog {
+  max-width: none !important;
+  z-index: 1000 !important; /* Lower than tour modal */
+}
+
+/* Override pointer-events-none and blur during tour */
+/* Only apply to tour modal elements, not the entire page */
+.tour-modal .pointer-events-none {
+  pointer-events: auto !important;
+}
+
+.tour-modal .blur-sm {
+  filter: none !important;
+}
+
+.tour-modal .opacity-50 {
+  opacity: 1 !important;
+}

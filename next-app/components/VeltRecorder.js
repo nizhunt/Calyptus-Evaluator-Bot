@@ -81,7 +81,9 @@ export default function VeltRecorder() {
         {!isRecorderReady ? (
           <LoadingButton />
         ) : (
-          <VeltRecorderTool type="screen" buttonLabel="Start Recording Now" />
+          <div className="velt-recorder-button">
+            <VeltRecorderTool type="screen" buttonLabel="Start Recording Now" />
+          </div>
         )}
         {/* Always show control panel - it will only be visible when recording */}
         <VeltRecorderControlPanel mode="floating" />

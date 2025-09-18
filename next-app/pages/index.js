@@ -6,6 +6,7 @@ import {
   VeltRecorderPlayer,
 } from "@veltdev/react";
 import VeltRecorder from "../components/VeltRecorder";
+import GuidedTour from "../components/GuidedTour";
 
 export default function Home() {
   const [assessmentQuestion, setAssessmentQuestion] = useState("");
@@ -90,6 +91,7 @@ export default function Home() {
   const [hasCompletedRecording, setHasCompletedRecording] = useState(false);
   const [recorderId, setRecorderId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showTour, setShowTour] = useState(true);
 
   // Velt Recorder integration
   const recorderUtils = useRecorderUtils();
@@ -250,9 +252,18 @@ export default function Home() {
 
   // Removed handleDownload function
 
+  const handleTourComplete = () => {
+    setShowTour(false);
+  };
+
+  const restartTour = () => {
+    setShowTour(true);
+  };
+
   return (
     <div className="container mx-auto min-h-screen flex flex-col p-6 bg-white text-gray-800">
-      <div className="logo-container mb-6">
+      {showTour && <GuidedTour onComplete={handleTourComplete} />}
+      <div className="logo-container mb-6 relative">
         <img
           src="/calyptus_new_logo.avif"
           alt="Calyptus Logo"
@@ -268,9 +279,19 @@ export default function Home() {
             </p>
           </div>
         )}
+        <button
+          onClick={restartTour}
+          className="absolute top-0 right-0 flex items-center gap-2 text-gray-400 hover:text-blue-600 transition-colors duration-200 px-3 py-2 rounded-md hover:bg-gray-100 text-sm font-medium"
+          title="Restart Tour"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Restart Tour
+        </button>
       </div>
       <div className="flex flex-col md:flex-row gap-6 flex-1">
-        <div className="question-section flex flex-col bg-white p-6 rounded-lg shadow-md border border-gray-200 md:w-1/3">
+        <div className="question-section assessment-container flex flex-col bg-white p-6 rounded-lg shadow-md border border-gray-200 md:w-1/3">
           <label className="block text-lg font-semibold text-gray-700 mb-3">
             Assessment Task
           </label>
