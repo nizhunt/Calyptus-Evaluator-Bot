@@ -47,7 +47,7 @@ export default function ThankYou() {
           </button>
           
           <button
-            onClick={() => router.push('/')}
+            onClick={() => window.location.href = 'https://calyptus.co'}
             className="w-full bg-gray-100 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-200 transition-all duration-200"
           >
             Return to Homepage
