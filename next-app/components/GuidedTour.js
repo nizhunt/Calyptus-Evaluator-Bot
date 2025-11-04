@@ -44,6 +44,14 @@ const tourSteps = [
     highlightElement: '.submit-form-section',
     position: 'top',
     unblurTarget: true
+  },
+  {
+    id: 'candidate-info',
+    title: 'Final Step: Your Information',
+    content: 'Please provide your name and email for evaluation tracking. This information is required to proceed.',
+    highlightElement: null,
+    position: 'center',
+    collectInfo: true
   }
 ];
 
@@ -52,12 +60,40 @@ export default function GuidedTour({ onComplete }) {
   const [isActive, setIsActive] = useState(true);
   const [highlightedElement, setHighlightedElement] = useState(null);
   
+  // Candidate info state
+  const [candidateName, setCandidateName] = useState('');
+  const [candidateEmail, setCandidateEmail] = useState('');
+  const [isFormValid, setIsFormValid] = useState(false);
+  const [nameError, setNameError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  
   // Draggable state - MUST be declared before any useEffect hooks
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [modalPosition, setModalPosition] = useState({ x: 0, y: 0 });
   const [isAnimating, setIsAnimating] = useState(true);
   const [hasBeenDragged, setHasBeenDragged] = useState(false);
+  
+  // Validation logic
+  useEffect(() => {
+    const nameValid = candidateName.trim().length >= 2;
+    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidateEmail);
+    
+    setIsFormValid(nameValid && emailValid);
+    
+    // Set error messages
+    if (candidateName && candidateName.trim().length < 2) {
+      setNameError('Name must be at least 2 characters');
+    } else {
+      setNameError('');
+    }
+    
+    if (candidateEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidateEmail)) {
+      setEmailError('Please enter a valid email address');
+    } else {
+      setEmailError('');
+    }
+  }, [candidateName, candidateEmail]);
   
   // Set initial position on client side after mount
   useEffect(() => {
@@ -193,10 +229,6 @@ export default function GuidedTour({ onComplete }) {
     }
   };
 
-  const handleSkip = () => {
-    handleComplete();
-  };
-
   const handleComplete = () => {
     setIsActive(false);
     // Remove tour-active class from body
@@ -233,10 +265,10 @@ export default function GuidedTour({ onComplete }) {
       }
     }
     
-    onComplete();
+    onComplete({ name: candidateName, email: candidateEmail });
   };
 
-  // Drag functionality - MUST be declared before useEffect hooks
+  // Drag functionality - MUST be declared before any useEffect hooks
   const handleMouseDown = (e) => {
     const modal = e.currentTarget.closest('.tour-modal');
     if (!modal) return;
@@ -321,23 +353,62 @@ export default function GuidedTour({ onComplete }) {
             </p>
           </div>
           
+          {/* Candidate Info Collection */}
+          {currentTourStep.collectInfo && (
+            <div className="mb-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Full Name *
+                </label>
+                <input
+                  type="text"
+                  value={candidateName}
+                  onChange={(e) => setCandidateName(e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    nameError ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Enter your full name"
+                  required
+                />
+                {nameError && (
+                  <p className="text-red-500 text-sm mt-1">{nameError}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email Address *
+                </label>
+                <input
+                  type="email"
+                  value={candidateEmail}
+                  onChange={(e) => setCandidateEmail(e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    emailError ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Enter your email address"
+                  required
+                />
+                {emailError && (
+                  <p className="text-red-500 text-sm mt-1">{emailError}</p>
+                )}
+              </div>
+            </div>
+          )}
+          
           <div className="flex justify-between items-center">
             <div className="text-sm text-gray-500">
               Step {currentStep + 1} of {tourSteps.length}
             </div>
             
             <div className="flex gap-2">
-              {currentStep < tourSteps.length - 1 && (
-                <button
-                  onClick={handleSkip}
-                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
-                >
-                  Skip Tour
-                </button>
-              )}
               <button
                 onClick={handleNext}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                disabled={currentTourStep.collectInfo && !isFormValid}
+                className={`px-4 py-2 rounded-md transition-colors ${
+                  currentTourStep.collectInfo && !isFormValid
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
               >
                 {currentStep === tourSteps.length - 1 ? 'Start Assessment' : 'Next'}
               </button>

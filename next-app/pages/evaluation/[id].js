@@ -109,12 +109,30 @@ export default function Evaluation({ evaluation }) {
   const recorderId = metadata?.recorderId;
   const recordingUrl = metadata?.recordingUrl;
   const submittedFiles = metadata?.submittedFiles || [];
+  const candidate = metadata?.candidate || {};
 
   return (
     <div className="container mx-auto min-h-screen p-6 bg-white text-gray-800">
       <h1 className="text-3xl font-bold mb-8 text-center bg-gradient-to-r from-blue-500 to-purple-500 text-transparent bg-clip-text">
         Evaluation Dashboard
       </h1>
+
+      {/* Candidate Information Section */}
+      {candidate.name && candidate.email && (
+        <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8">
+          <h2 className="text-xl font-semibold mb-4">Candidate Information</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-gray-600">Name</p>
+              <p className="text-lg font-semibold text-gray-800">{candidate.name}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Email</p>
+              <p className="text-lg font-semibold text-gray-800">{candidate.email}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Velt Recorder Player Section */}
       {recorderId && (

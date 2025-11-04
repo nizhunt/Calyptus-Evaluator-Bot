@@ -92,6 +92,7 @@ export default function Home() {
   const [recorderId, setRecorderId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showTour, setShowTour] = useState(true);
+  const [candidateData, setCandidateData] = useState({ name: '', email: '' });
 
   // Velt Recorder integration
   const recorderUtils = useRecorderUtils();
@@ -218,6 +219,13 @@ export default function Home() {
     formData.append("recordingUrl", recordingUrl);
     formData.append("recorderId", recorderId || "");
     formData.append("customInstructions", customInstructions || "");
+    
+    // Add candidate data
+    if (candidateData.name && candidateData.email) {
+      formData.append("candidateName", candidateData.name);
+      formData.append("candidateEmail", candidateData.email);
+    }
+    
     screenshots
       .filter((s) => s)
       .forEach((screenshot, index) => {
@@ -243,7 +251,36 @@ export default function Home() {
       });
       const saveData = await saveRes.json();
 
-      router.push(`/evaluation/${saveData.id}`);
+      // Call webhook with evaluation data
+      const evaluationUrl = `${window.location.origin}/evaluation/${saveData.id}`;
+      const webhookPayload = {
+        evaluationUrl,
+        evaluationData: data.evaluation,
+        metadata: data.metadata,
+        testCreator: {
+          name: tokenData?.employerName || "Unknown",
+          email: tokenData?.emailId || "Unknown"
+        },
+        candidate: {
+          name: candidateData.name || "Unknown",
+          email: candidateData.email || "Unknown"
+        },
+        timestamp: new Date().toISOString()
+      };
+
+      // Send webhook notification (don't wait for response)
+      fetch("https://nishant-calyptus.app.n8n.cloud/webhook/5ab1cb27-230e-4d1b-8699-4876018ceacf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(webhookPayload),
+      }).catch(webhookError => {
+        console.error("Webhook call failed:", webhookError);
+        // Don't show error to user - webhook failure shouldn't block the flow
+      });
+
+      // Redirect to thank you page with candidate and creator names
+      const thankYouUrl = `/thank-you?name=${encodeURIComponent(candidateData.name || "")}&creator=${encodeURIComponent(tokenData?.employerName || "")}`;
+      router.push(thankYouUrl);
     } catch (error) {
       alert("Error: " + error.message);
     }
@@ -252,8 +289,12 @@ export default function Home() {
 
   // Removed handleDownload function
 
-  const handleTourComplete = () => {
+  const handleTourComplete = (candidateData = {}) => {
     setShowTour(false);
+    // Store candidate data for submission
+    if (candidateData.name && candidateData.email) {
+      setCandidateData(candidateData);
+    }
   };
 
   const restartTour = () => {

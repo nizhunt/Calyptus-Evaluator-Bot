@@ -32,6 +32,10 @@ export default async function handler(req, res) {
     const recordingUrl = fields.recordingUrl[0];
     const recorderId = fields.recorderId?.[0] || "";
     const customInstructions = fields.customInstructions?.[0] || "";
+    
+    // Extract candidate information
+    const candidateName = fields.candidateName?.[0] || "";
+    const candidateEmail = fields.candidateEmail?.[0] || "";
 
     // Process screenshots as base64 for GPT-4o vision
     const screenshotImages = [];
@@ -201,6 +205,10 @@ export default async function handler(req, res) {
       recordingUrl: recordingUrl,
       modelUsed: "gpt-4o",
       multimodalProcessing: true,
+      candidate: {
+        name: candidateName,
+        email: candidateEmail,
+      },
     };
 
     res.status(200).json({ evaluation, metadata });
