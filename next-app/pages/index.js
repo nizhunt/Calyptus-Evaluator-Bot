@@ -278,8 +278,13 @@ export default function Home() {
         // Don't show error to user - webhook failure shouldn't block the flow
       });
 
-      // Redirect to thank you page with candidate and creator names
-      const thankYouUrl = `/thank-you?name=${encodeURIComponent(candidateData.name || "")}&creator=${encodeURIComponent(tokenData?.employerName || "")}`;
+      // Redirect to thank you page with all fields we already have
+      const thankYouUrl = `/thank-you` +
+        `?name=${encodeURIComponent(candidateData.name || "")}` +
+        `&email=${encodeURIComponent(candidateData.email || "")}` +
+        `&creator=${encodeURIComponent(tokenData?.employerName || "")}` +
+        `&creatorEmail=${encodeURIComponent(tokenData?.emailId || "")}` +
+        `&evaluation=${encodeURIComponent(saveData.id)}`;
       router.push(thankYouUrl);
     } catch (error) {
       alert("Error: " + error.message);

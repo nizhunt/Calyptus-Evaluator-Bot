@@ -5,16 +5,52 @@ export default function ThankYou() {
   const router = useRouter();
   const [candidateName, setCandidateName] = useState('');
   const [creatorName, setCreatorName] = useState('');
+  const [showFeedback, setShowFeedback] = useState(true); // always visible
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [feedbackSent, setFeedbackSent] = useState(false);
+
+  const sendFeedback = async () => {
+    const { evaluation: evaluationId, creatorEmail, email: candidateEmail } = router.query;
+    const evaluationUrl = evaluationId
+       ? `${window.location.origin}/evaluation/${evaluationId}`
+       : '';
+
+    const payload = {
+      evaluationUrl,
+      evaluationData: {},        // populate on server if needed
+      metadata: {},             // populate on server if needed
+      testCreator: {
+        name: creatorName,
+        email: creatorEmail ? decodeURIComponent(creatorEmail) : '',
+      },
+      candidate: {
+        name: candidateName,
+        email: candidateEmail ? decodeURIComponent(candidateEmail) : '',
+      },
+      rating,
+      comment,
+      timestamp: new Date().toISOString(),
+    };
+
+    try {
+      await fetch(process.env.NEXT_PUBLIC_FEEDBACK_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      setFeedbackSent(true);        // show thank-you message
+    } catch (e) {
+      // silently ignore network errors
+    }
+  };
 
   useEffect(() => {
     // Get data from URL parameters
-    const { name, creator } = router.query;
-    if (name) {
-      setCandidateName(decodeURIComponent(name));
-    }
-    if (creator) {
-      setCreatorName(decodeURIComponent(creator));
-    }
+    const { name, email, creator, creatorEmail } = router.query;
+    if (name)  setCandidateName(decodeURIComponent(name));
+    if (creator) setCreatorName(decodeURIComponent(creator));
+    // store emails in state if you need them elsewhere
   }, [router.query]);
 
   return (
@@ -52,6 +88,54 @@ export default function ThankYou() {
           >
             Return to Homepage
           </button>
+        </div>
+
+        <div className="mt-6">
+          <div className="mt-4 bg-gray-50 rounded-lg p-4 text-left">
+            {!feedbackSent ? (
+              <>
+                <div className="mb-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Rate your experience</label>
+                  <div className="flex space-x-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        onClick={() => setRating(star)}
+                        className={`text-2xl ${star <= rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                      >
+                        ★
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Comments</label>
+                  <textarea
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    className="w-full border border-gray-300 rounded-md p-2 text-sm"
+                    rows={3}
+                    placeholder="Optional comments..."
+                  />
+                </div>
+                <button
+                  onClick={sendFeedback}
+                  className="bg-gradient-to-r from-blue-500 to-purple-500 text-white py-2 px-4 rounded-md text-sm font-semibold hover:from-blue-600 hover:to-purple-600"
+                >
+                  Send Feedback
+                </button>
+              </>
+            ) : (
+              <div className="text-center">
+                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <p className="text-green-700 font-semibold">Thanks for your feedback!</p>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="mt-6 pt-6 border-t border-gray-200">
