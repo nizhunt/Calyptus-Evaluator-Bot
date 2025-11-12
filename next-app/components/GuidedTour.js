@@ -55,7 +55,7 @@ const tourSteps = [
   }
 ];
 
-export default function GuidedTour({ onComplete }) {
+export default function GuidedTour({ onComplete, initialCandidate }) {
   const [currentStep, setCurrentStep] = useState(0);
   const [isActive, setIsActive] = useState(true);
   const [highlightedElement, setHighlightedElement] = useState(null);
@@ -94,6 +94,18 @@ export default function GuidedTour({ onComplete }) {
       setEmailError('');
     }
   }, [candidateName, candidateEmail]);
+
+  // Prefill candidate info when restarting the tour (no persistence across reloads)
+  useEffect(() => {
+    if (initialCandidate) {
+      if (typeof initialCandidate.name === 'string') {
+        setCandidateName(initialCandidate.name);
+      }
+      if (typeof initialCandidate.email === 'string') {
+        setCandidateEmail(initialCandidate.email);
+      }
+    }
+  }, [initialCandidate]);
   
   // Set initial position on client side after mount
   useEffect(() => {

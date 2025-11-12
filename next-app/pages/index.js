@@ -308,7 +308,7 @@ export default function Home() {
 
   return (
     <div className="container mx-auto min-h-screen flex flex-col p-6 bg-white text-gray-800">
-      {showTour && <GuidedTour onComplete={handleTourComplete} />}
+      {showTour && <GuidedTour onComplete={handleTourComplete} initialCandidate={candidateData} />}
       <div className="logo-container mb-6 relative">
         <img
           src="/calyptus_new_logo.avif"
