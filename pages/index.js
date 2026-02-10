@@ -153,7 +153,11 @@ export default function Home() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ assessmentQuestion, message: input }),
+        body: JSON.stringify({
+          assessmentQuestion,
+          message: input,
+          history: newMessages,
+        }),
       });
       const data = await res.json();
       setMessages([...newMessages, { sender: "bot", content: data.response }]);

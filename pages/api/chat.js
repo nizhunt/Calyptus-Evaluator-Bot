@@ -1,42 +1,74 @@
-import { randomUUID } from "crypto";
+import fs from "fs/promises";
+import path from "path";
+import OpenAI from "openai";
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+async function readPromptTemplate() {
+  const promptPath = path.join(
+    process.cwd(),
+    "data",
+    "prompts",
+    "helperbot-prompt.md"
+  );
+  return fs.readFile(promptPath, "utf8");
+}
+
+function buildSystemPrompt(template, assessmentQuestion) {
+  const question = assessmentQuestion || "Not provided";
+  return template
+    .replace("[INSERT_ASSESSMENT_QUESTION]", question)
+    .replace("{{ASSESSMENT_QUESTION}}", question);
+}
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { assessmentQuestion, message } = req.body;
-  const webhookUrl = process.env.N8N_WEBHOOK_URL;
+  if (!process.env.OPENAI_API_KEY) {
+    return res
+      .status(500)
+      .json({ error: "Server misconfiguration: OPENAI_API_KEY is missing" });
+  }
+
+  const { assessmentQuestion, message, history = [] } = req.body;
 
   try {
-    const sessionId = randomUUID();
-    const payload = {
-      text: message,
-      task: assessmentQuestion,
-      timestamp: new Date().toISOString(),
-      sessionId: sessionId,
-    };
+    const promptTemplate = await readPromptTemplate();
+    const systemPrompt = buildSystemPrompt(promptTemplate, assessmentQuestion);
 
-    const response = await fetch(webhookUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+    const historyMessages = Array.isArray(history)
+      ? history
+          .filter((item) => item && typeof item.content === "string")
+          .map((item) => ({
+            role: item.sender === "bot" ? "assistant" : "user",
+            content: item.content,
+          }))
+      : [];
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    if (historyMessages.length === 0 && typeof message === "string" && message.trim()) {
+      historyMessages.push({ role: "user", content: message.trim() });
     }
 
-    const data = await response.json();
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...historyMessages,
+      ],
+      temperature: 0.3,
+    });
+
     const botResponse =
-      data.response || data.message || data.text || "No response received";
+      completion.choices?.[0]?.message?.content?.trim() || "No response received";
 
     res.status(200).json({ response: botResponse });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Error generating response" });
+    const message = error instanceof Error ? error.message : "Error generating response";
+    console.error("Chat API error:", message);
+    res.status(500).json({ error: message });
   }
 }

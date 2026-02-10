@@ -15,7 +15,9 @@ This is a Next.js application adapted from the original evaluator.js script. It 
    npm install
    ```
 
-Note: The evaluation prompt is located in the `data/` directory.
+Note: Prompt templates are in `data/`:
+- Evaluation prompt: `data/evaluation_prompt.md`
+- Helper bot prompt: `data/prompts/helperbot-prompt.md`
 
 3. For local development, create a `.env.local` file with:
 
