@@ -1,11 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
-import {
-  useRecorderUtils,
-  useRecorderEventCallback,
-  VeltRecorderPlayer,
-} from "@veltdev/react";
-import VeltRecorder from "../components/VeltRecorder";
+import InhousePluginRecorder from "../components/InhousePluginRecorder";
 import GuidedTour from "../components/GuidedTour";
 
 export default function Home() {
@@ -94,81 +89,52 @@ export default function Home() {
   const [showTour, setShowTour] = useState(true);
   const [candidateData, setCandidateData] = useState({ name: '', email: '' });
 
-  // Velt Recorder integration
-  const recorderUtils = useRecorderUtils();
-  const recordingStarted = useRecorderEventCallback("recordingStarted");
-  const recordingStopped = useRecorderEventCallback("recordingStopped");
-  const recordingDone = useRecorderEventCallback("recordingDone");
-
-  useEffect(() => {
-    if (recorderUtils) {
-      recorderUtils.disableRecordingMic(); // Screen-only recording
-    }
-  }, [recorderUtils]);
-
-  useEffect(() => {
-    if (recordingStarted) {
+  const handleRecorderLifecycleUpdate = (nextState) => {
+    if (nextState === "recording") {
       setIsChatUnlocked(true);
       setIsRecording(true);
       setHasStartedRecording(true);
-    }
-  }, [recordingStarted]);
-
-  useEffect(() => {
-    if (recordingStopped) {
-      setHasCompletedRecording(true);
-      setIsLoading(true);
-    }
-  }, [recordingStopped]);
-
-  useEffect(() => {
-    if (recordingDone) {
-      setIsRecording(false);
-      if (recordingDone.recorderId) {
-        setRecorderId(recordingDone.recorderId);
-        // Fetch transcript from Velt
-        fetchTranscriptFromVelt(recordingDone.recorderId);
-      }
-      setIsLoading(false);
-
-      // Example: setRecordingUrl(`https://app.velt.dev/recorder/${recordingDone.recorderId}`);
-    }
-  }, [recordingDone]);
-
-  const fetchTranscriptFromVelt = async (recorderId) => {
-    if (!recorderUtils) {
       return;
     }
 
-    try {
-      const recorderData = await recorderUtils.fetchRecordings({
-        recorderIds: [recorderId],
-      });
-
-      if (
-        !recorderData ||
-        !Array.isArray(recorderData) ||
-        recorderData.length === 0
-      ) {
-        return;
+    if (["stopping", "uploading", "transcribing"].includes(nextState)) {
+      setHasCompletedRecording(true);
+      setIsLoading(true);
+      if (nextState === "stopping") {
+        setIsRecording(false);
       }
-
-      const recording = recorderData[0];
-
-      if (
-        recording.transcription &&
-        recording.transcription.transcriptSegments
-      ) {
-        const fullTranscript = recording.transcription.transcriptSegments
-          .map((segment) => segment.text)
-          .join(" ");
-
-        // Store transcript for evaluation API usage
-        window.veltTranscript = fullTranscript;
-      }
-    } catch (error) {
-      console.error("Error fetching transcript:", error);
+      return;
     }
+
+    if (nextState === "video_ready") {
+      setIsRecording(false);
+      setHasCompletedRecording(true);
+      setIsLoading(false);
+      return;
+    }
+
+    if (nextState === "error") {
+      setIsRecording(false);
+      setIsLoading(false);
+    }
+  };
+
+  const handleRecorderVideoReady = ({ recordingId, playbackUrl }) => {
+    setRecorderId(recordingId || null);
+    setRecordingUrl(playbackUrl || "");
+    setHasCompletedRecording(true);
+    setIsLoading(false);
+    setIsRecording(false);
+  };
+
+  const handleRecorderTranscriptReady = ({ transcriptText }) => {
+    setTranscript(transcriptText || "");
+  };
+
+  const handleRecorderError = (error) => {
+    console.error("Recorder error:", error);
+    setIsRecording(false);
+    setIsLoading(false);
   };
 
   const handleSend = async () => {
@@ -215,7 +181,7 @@ export default function Home() {
     const formData = new FormData();
     formData.append("assessmentQuestion", assessmentQuestion);
     formData.append("conversationContent", conversationContent);
-    formData.append("veltTranscript", window.veltTranscript || "");
+    formData.append("inhouseTranscript", transcript || "");
     formData.append("recordingUrl", recordingUrl);
     formData.append("recorderId", recorderId || "");
     formData.append("customInstructions", customInstructions || "");
@@ -278,14 +244,23 @@ export default function Home() {
         // Don't show error to user - webhook failure shouldn't block the flow
       });
 
-      // Redirect to thank you page with all fields we already have
-      const thankYouUrl = `/thank-you` +
-        `?name=${encodeURIComponent(candidateData.name || "")}` +
-        `&email=${encodeURIComponent(candidateData.email || "")}` +
-        `&creator=${encodeURIComponent(tokenData?.employerName || "")}` +
-        `&creatorEmail=${encodeURIComponent(tokenData?.emailId || "")}` +
-        `&evaluation=${encodeURIComponent(saveData.id)}`;
-      router.push(thankYouUrl);
+      // Keep sensitive data out of URL and pass it via session storage instead.
+      try {
+        window.sessionStorage.setItem(
+          "thankYouContext",
+          JSON.stringify({
+            candidateName: candidateData.name || "",
+            candidateEmail: candidateData.email || "",
+            creatorName: tokenData?.employerName || "",
+            creatorEmail: tokenData?.emailId || "",
+            evaluationId: saveData.id || "",
+          })
+        );
+      } catch (storageError) {
+        console.error("Unable to persist thank-you context:", storageError);
+      }
+
+      router.push("/thank-you");
     } catch (error) {
       alert("Error: " + error.message);
     }
@@ -373,7 +348,12 @@ export default function Home() {
               ✓ This assessment question was provided by {employerName}
             </div>
           )}
-          <VeltRecorder />
+          <InhousePluginRecorder
+            onLifecycleUpdate={handleRecorderLifecycleUpdate}
+            onVideoReady={handleRecorderVideoReady}
+            onTranscriptReady={handleRecorderTranscriptReady}
+            onError={handleRecorderError}
+          />
         </div>
         <div
           className={`chat-section flex-1 h-[500px] bg-white rounded-lg shadow-md border border-gray-200 flex flex-col mt-6 md:mt-0 relative ${
@@ -500,29 +480,24 @@ export default function Home() {
                 </div>
               </div>
             )}
-            {!isLoading && recorderId && hasCompletedRecording && (
+            {!isLoading && recordingUrl && hasCompletedRecording && (
               <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-md mb-6">
-                <h3 className="text-lg font-medium mb-2">Latest Recording</h3>
-                <VeltRecorderPlayer
-                  key={recorderId}
-                  recorderId={recorderId}
-                  summary={false}
-                />
-              </div>
-            )}
-            {recordingUrl && (
-              <div className="form-group mb-6">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Recorded Video Preview
-                </label>
-                <div className="relative max-w-md md:max-w-[33.6rem] mx-auto pb-[56.25%] h-0 overflow-hidden rounded-lg shadow-md">
-                  <iframe
-                    src={recordingUrl.replace("/share/", "/embed/")}
-                    frameBorder="0"
-                    allowFullScreen
-                    className="absolute top-0 left-0 w-full h-full"
-                  ></iframe>
-                </div>
+                {recordingUrl.includes("/share/") ? (
+                  <div className="w-full max-w-4xl mx-auto overflow-hidden rounded-lg border border-gray-200 shadow-sm bg-black aspect-video">
+                    <iframe
+                      src={recordingUrl.replace("/share/", "/embed/")}
+                      frameBorder="0"
+                      allowFullScreen
+                      className="w-full h-full"
+                    />
+                  </div>
+                ) : (
+                  <video
+                    src={recordingUrl}
+                    controls
+                    className="w-full h-auto max-w-4xl mx-auto rounded-lg border border-gray-200 bg-black"
+                  />
+                )}
               </div>
             )}
             <form

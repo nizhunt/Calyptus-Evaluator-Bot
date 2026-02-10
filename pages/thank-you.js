@@ -4,14 +4,15 @@ import { useEffect, useState } from 'react';
 export default function ThankYou() {
   const router = useRouter();
   const [candidateName, setCandidateName] = useState('');
+  const [candidateEmail, setCandidateEmail] = useState('');
   const [creatorName, setCreatorName] = useState('');
-  const [showFeedback, setShowFeedback] = useState(true); // always visible
+  const [creatorEmail, setCreatorEmail] = useState('');
+  const [evaluationId, setEvaluationId] = useState('');
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [feedbackSent, setFeedbackSent] = useState(false);
 
   const sendFeedback = async () => {
-    const { evaluation: evaluationId, creatorEmail, email: candidateEmail } = router.query;
     const evaluationUrl = evaluationId
        ? `${window.location.origin}/evaluation/${evaluationId}`
        : '';
@@ -22,11 +23,11 @@ export default function ThankYou() {
       metadata: {},             // populate on server if needed
       testCreator: {
         name: creatorName,
-        email: creatorEmail ? decodeURIComponent(creatorEmail) : '',
+        email: creatorEmail || '',
       },
       candidate: {
         name: candidateName,
-        email: candidateEmail ? decodeURIComponent(candidateEmail) : '',
+        email: candidateEmail || '',
       },
       rating,
       comment,
@@ -46,12 +47,39 @@ export default function ThankYou() {
   };
 
   useEffect(() => {
-    // Get data from URL parameters
-    const { name, email, creator, creatorEmail } = router.query;
-    if (name)  setCandidateName(decodeURIComponent(name));
-    if (creator) setCreatorName(decodeURIComponent(creator));
-    // store emails in state if you need them elsewhere
-  }, [router.query]);
+    if (!router.isReady) return;
+
+    let hasStoredData = false;
+
+    // Primary path: retrieve context from session storage to avoid URL data leakage.
+    try {
+      const raw = window.sessionStorage.getItem('thankYouContext');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.candidateName) setCandidateName(parsed.candidateName);
+        if (parsed?.candidateEmail) setCandidateEmail(parsed.candidateEmail);
+        if (parsed?.creatorName) setCreatorName(parsed.creatorName);
+        if (parsed?.creatorEmail) setCreatorEmail(parsed.creatorEmail);
+        if (parsed?.evaluationId) setEvaluationId(parsed.evaluationId);
+        hasStoredData = true;
+      }
+    } catch (error) {
+      console.error('Unable to read thank-you context:', error);
+    }
+
+    // Fallback for old links that still include query params.
+    if (!hasStoredData) {
+      const { name, email, creator, creatorEmail: creatorEmailFromQuery, evaluation } = router.query;
+
+      if (typeof name === 'string') setCandidateName(decodeURIComponent(name));
+      if (typeof email === 'string') setCandidateEmail(decodeURIComponent(email));
+      if (typeof creator === 'string') setCreatorName(decodeURIComponent(creator));
+      if (typeof creatorEmailFromQuery === 'string') {
+        setCreatorEmail(decodeURIComponent(creatorEmailFromQuery));
+      }
+      if (typeof evaluation === 'string') setEvaluationId(decodeURIComponent(evaluation));
+    }
+  }, [router.isReady, router.query]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">

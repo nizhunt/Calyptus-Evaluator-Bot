@@ -1,5 +1,4 @@
 import { list } from "@vercel/blob";
-import { VeltRecorderPlayer } from "@veltdev/react";
 
 export default function Evaluation({ evaluation }) {
   let parsedData;
@@ -106,7 +105,6 @@ export default function Evaluation({ evaluation }) {
   } = parsedEval;
 
   // Extract metadata for recorder and files
-  const recorderId = metadata?.recorderId;
   const recordingUrl = metadata?.recordingUrl;
   const submittedFiles = metadata?.submittedFiles || [];
   const candidate = metadata?.candidate || {};
@@ -134,31 +132,6 @@ export default function Evaluation({ evaluation }) {
         </div>
       )}
 
-      {/* Velt Recorder Player Section */}
-      {recorderId && (
-        <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8">
-          <h2 className="text-xl font-semibold mb-4">Screen Recording</h2>
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <VeltRecorderPlayer recorderId={recorderId} summary={false} />
-          </div>
-          {recordingUrl && (
-            <div className="mt-4 text-sm text-gray-600">
-              <p>
-                Recording URL:{" "}
-                <a
-                  href={recordingUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-500 hover:underline"
-                >
-                  {recordingUrl}
-                </a>
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
       {(recordingUrl || submittedFiles?.length > 0) && (
         <div className="flex flex-col md:flex-row gap-6 mb-8">
           {recordingUrl && (
@@ -167,13 +140,23 @@ export default function Evaluation({ evaluation }) {
                 submittedFiles?.length > 0 ? "md:w-[70%]" : "md:w-full"
               }`}
             >
-              <h2 className="text-xl font-semibold mb-4">Video Preview</h2>
-              <iframe
-                src={recordingUrl.replace("/share/", "/embed/")}
-                frameBorder="0"
-                allowFullScreen
-                className="w-full h-64"
-              ></iframe>
+              <h2 className="text-xl font-semibold mb-4">Recording</h2>
+              {recordingUrl.includes("/share/") ? (
+                <div className="w-full overflow-hidden rounded-lg border border-gray-200 shadow-sm bg-black aspect-video">
+                  <iframe
+                    src={recordingUrl.replace("/share/", "/embed/")}
+                    frameBorder="0"
+                    allowFullScreen
+                    className="w-full h-full"
+                  />
+                </div>
+              ) : (
+                <video
+                  src={recordingUrl}
+                  controls
+                  className="w-full h-auto rounded-lg border border-gray-200 bg-black"
+                />
+              )}
             </div>
           )}
           {submittedFiles?.length > 0 && (

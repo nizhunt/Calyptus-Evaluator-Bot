@@ -1,5 +1,5 @@
 import { useState } from "react";
-import VeltRecorder from "../components/VeltRecorder";
+import InhousePluginRecorder from "../components/InhousePluginRecorder";
 
 export default function TestInteraction() {
   const [clickCount, setClickCount] = useState(0);
@@ -9,13 +9,13 @@ export default function TestInteraction() {
     <div className="min-h-screen bg-gray-100 p-8">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-8 text-center">
-          Velt Recording Interaction Test
+          Screen Recording Interaction Test
         </h1>
         
         {/* Recording Component */}
         <div className="bg-white p-6 rounded-lg shadow-md mb-8">
           <h2 className="text-xl font-semibold mb-4">Recording Controls</h2>
-          <VeltRecorder />
+          <InhousePluginRecorder />
         </div>
 
         {/* Test Components */}
