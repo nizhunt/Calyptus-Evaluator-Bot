@@ -8,6 +8,7 @@ export default function InhousePluginRecorder({
   onVideoReady,
   onTranscriptReady,
   onError,
+  hasPreviousRecording = false,
 }) {
   const recorderRef = useRef(null);
   const callbacksRef = useRef({
@@ -19,6 +20,11 @@ export default function InhousePluginRecorder({
   const [state, setState] = useState("idle");
   const [uploadProgress, setUploadProgress] = useState(null);
   const [runtimeError, setRuntimeError] = useState("");
+  const sessionIdRef = useRef(
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  );
 
   const apiBaseUrl = process.env.NEXT_PUBLIC_RECORDER_API_BASE_URL || "";
   const apiKey = process.env.NEXT_PUBLIC_SCREEN_RECORDER_API_KEY || "";
@@ -43,6 +49,7 @@ export default function InhousePluginRecorder({
     const recorder = new ScreenRecorder({
       apiBaseUrl,
       apiKey: apiKey || undefined,
+      sessionId: sessionIdRef.current,
       maxDuration: 7200,
       autoStopEnabled: true,
       onLifecycleUpdate: (nextState) => {
@@ -143,7 +150,7 @@ export default function InhousePluginRecorder({
                   : "bg-gray-300 text-gray-600 border-gray-400 cursor-not-allowed"
               }`}
             >
-              Start Recording Now
+              {hasPreviousRecording ? "Re-record" : "Start Recording Now"}
             </button>
             {isRecording && (
               <button

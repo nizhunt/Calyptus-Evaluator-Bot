@@ -94,6 +94,11 @@ export default function Home() {
       setIsChatUnlocked(true);
       setIsRecording(true);
       setHasStartedRecording(true);
+      setHasCompletedRecording(false);
+      setIsLoading(false);
+      setRecordingUrl("");
+      setTranscript("");
+      setRecorderId(null);
       return;
     }
 
@@ -353,6 +358,7 @@ export default function Home() {
             onVideoReady={handleRecorderVideoReady}
             onTranscriptReady={handleRecorderTranscriptReady}
             onError={handleRecorderError}
+            hasPreviousRecording={hasStartedRecording}
           />
         </div>
         <div
