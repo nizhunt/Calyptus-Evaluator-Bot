@@ -2,6 +2,16 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
 import InhousePluginRecorder from "../components/InhousePluginRecorder";
 import GuidedTour from "../components/GuidedTour";
+import ReactMarkdown from "react-markdown";
+
+const markdownComponents = {
+  p: ({ node, ...props }) => <p className="mb-2 last:mb-0 leading-relaxed" {...props} />,
+  ul: ({ node, ...props }) => <ul className="list-disc ml-4 mb-2 space-y-1" {...props} />,
+  ol: ({ node, ...props }) => <ol className="list-decimal ml-4 mb-2 space-y-1" {...props} />,
+  li: ({ node, ...props }) => <li className="pl-1" {...props} />,
+  strong: ({ node, ...props }) => <span className="font-bold" {...props} />,
+  a: ({ node, ...props }) => <a className="underline hover:text-blue-200 transition-colors" target="_blank" rel="noopener noreferrer" {...props} />,
+};
 
 export default function Home() {
   const [assessmentQuestion, setAssessmentQuestion] = useState("");
@@ -194,13 +204,13 @@ export default function Home() {
     formData.append("recordingUrl", recordingUrl);
     formData.append("recorderId", recorderId || "");
     formData.append("customInstructions", customInstructions || "");
-    
+
     // Add candidate data
     if (candidateData.name && candidateData.email) {
       formData.append("candidateName", candidateData.name);
       formData.append("candidateEmail", candidateData.email);
     }
-    
+
     screenshots
       .filter((s) => s)
       .forEach((screenshot, index) => {
@@ -221,7 +231,23 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          data: { evaluation: data.evaluation, metadata: data.metadata },
+          data: {
+            evaluation: data.evaluation,
+            metadata: {
+              ...(data.metadata || {}),
+              companyName: tokenData?.employerName || "",
+              testCreator: {
+                name: tokenData?.employerName || "",
+                email: tokenData?.emailId || "",
+              },
+              candidate: {
+                name: candidateData.name || "",
+                email: candidateData.email || "",
+              },
+              assessmentQuestion,
+              customInstructions: customInstructions || "",
+            },
+          },
         }),
       });
       const saveData = await saveRes.json();
@@ -340,11 +366,10 @@ export default function Home() {
             onChange={(e) =>
               !isCustomTest && setAssessmentQuestion(e.target.value)
             }
-            className={`w-full flex-1 p-4 border-2 rounded-md mb-4 ${
-              isCustomTest
-                ? "border-blue-300 bg-blue-50 cursor-not-allowed"
-                : "border-gray-300 focus:border-blue-500"
-            }`}
+            className={`w-full flex-1 p-4 border-2 rounded-md mb-4 ${isCustomTest
+              ? "border-blue-300 bg-blue-50 cursor-not-allowed"
+              : "border-gray-300 focus:border-blue-500"
+              }`}
             placeholder={
               isCustomTest
                 ? "Assessment question loaded from custom link"
@@ -366,9 +391,8 @@ export default function Home() {
           />
         </div>
         <div
-          className={`chat-section flex-1 h-[500px] bg-white rounded-lg shadow-md border border-gray-200 flex flex-col mt-6 md:mt-0 relative ${
-            !hasStartedRecording ? "pointer-events-none opacity-50 blur-sm" : ""
-          }`}
+          className={`chat-section flex-1 h-[500px] bg-white rounded-lg shadow-md border border-gray-200 flex flex-col mt-6 md:mt-0 relative ${!hasStartedRecording ? "pointer-events-none opacity-50 blur-sm" : ""
+            }`}
         >
           <div className="chat-header p-6 border-b border-gray-200 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-t-lg">
             <h2 className="text-xl font-semibold">AI Assistant</h2>
@@ -390,27 +414,40 @@ export default function Home() {
             {messages.map((msg, index) => (
               <div
                 key={index}
-                className={`message flex ${
-                  msg.sender === "user" ? "flex-row-reverse" : ""
-                } gap-3`}
+                className={`message flex ${msg.sender === "user" ? "flex-row-reverse" : ""
+                  } gap-3`}
               >
                 <div
-                  className={`message-avatar w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${
-                    msg.sender === "user"
-                      ? "bg-gradient-to-r from-blue-500 to-purple-500"
-                      : "bg-gray-400"
-                  }`}
+                  className={`message-avatar w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${msg.sender === "user"
+                    ? "bg-gradient-to-r from-blue-500 to-purple-500"
+                    : "bg-gray-400"
+                    }`}
                 >
                   {msg.sender[0].toUpperCase()}
                 </div>
+
                 <div
-                  className={`message-content max-w-[70%] p-4 rounded-2xl shadow-md ${
-                    msg.sender === "user"
-                      ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white"
-                      : "bg-gray-50 text-gray-700 border border-gray-200"
-                  }`}
+                  className={`message-content max-w-[70%] p-4 rounded-2xl shadow-md ${msg.sender === "user"
+                    ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white"
+                    : "bg-gray-50 text-gray-700 border border-gray-200"
+                    } overflow-hidden`}
                 >
-                  {msg.content}
+                  <ReactMarkdown
+                    components={{
+                      ...markdownComponents,
+                      // Adjust link color based on sender if needed, but white/gray text contrast handles most
+                      a: ({ node, ...props }) => (
+                        <a
+                          className={`underline transition-colors ${msg.sender === "user" ? "hover:text-blue-100" : "text-blue-600 hover:text-blue-800"}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          {...props}
+                        />
+                      )
+                    }}
+                  >
+                    {msg.content}
+                  </ReactMarkdown>
                 </div>
               </div>
             ))}
@@ -430,11 +467,10 @@ export default function Home() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 disabled={!isChatUnlocked}
-                className={`flex-1 p-4 border-2 rounded-full resize-none min-h-[48px] max-h-[120px] text-gray-800 placeholder-gray-500 ${
-                  !isChatUnlocked
-                    ? "border-gray-200 bg-gray-100 cursor-not-allowed"
-                    : "border-gray-300 bg-white focus:border-blue-500"
-                }`}
+                className={`flex-1 p-4 border-2 rounded-full resize-none min-h-[48px] max-h-[120px] text-gray-800 placeholder-gray-500 ${!isChatUnlocked
+                  ? "border-gray-200 bg-gray-100 cursor-not-allowed"
+                  : "border-gray-300 bg-white focus:border-blue-500"
+                  }`}
                 placeholder={
                   !isChatUnlocked
                     ? "Start recording to unlock chat..."
@@ -451,11 +487,10 @@ export default function Home() {
               <button
                 onClick={handleSend}
                 disabled={!isChatUnlocked}
-                className={`send-button w-12 h-12 rounded-full text-white flex items-center justify-center ${
-                  !isChatUnlocked
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
-                }`}
+                className={`send-button w-12 h-12 rounded-full text-white flex items-center justify-center ${!isChatUnlocked
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
+                  }`}
               >
                 ➤
               </button>
@@ -474,11 +509,10 @@ export default function Home() {
               : "Please provide the required information for your test submission"}
           </h2>
           <div
-            className={`${
-              !hasCompletedRecording
-                ? "pointer-events-none opacity-50 blur-sm"
-                : ""
-            }`}
+            className={`${!hasCompletedRecording
+              ? "pointer-events-none opacity-50 blur-sm"
+              : ""
+              }`}
           >
             {isLoading && (
               <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-md mb-6">
@@ -512,9 +546,8 @@ export default function Home() {
             )}
             <form
               onSubmit={handleSubmit}
-              className={`grid grid-cols-1 gap-4 space-y-0 ${
-                isLocal ? "md:grid-cols-2" : ""
-              }`}
+              className={`grid grid-cols-1 gap-4 space-y-0 ${isLocal ? "md:grid-cols-2" : ""
+                }`}
             >
               <div className={`space-y-4 ${isLocal ? "md:col-span-1" : ""}`}>
                 <div className="form-group">

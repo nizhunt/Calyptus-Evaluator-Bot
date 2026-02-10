@@ -35,11 +35,33 @@ export default function ThankYou() {
     };
 
     try {
-      await fetch(process.env.NEXT_PUBLIC_FEEDBACK_API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      const requests = [];
+
+      if (process.env.NEXT_PUBLIC_FEEDBACK_API_URL) {
+        requests.push(
+          fetch(process.env.NEXT_PUBLIC_FEEDBACK_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          })
+        );
+      }
+
+      if (evaluationId) {
+        requests.push(
+          fetch('/api/save-feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              evaluationId,
+              rating,
+              comment,
+            }),
+          })
+        );
+      }
+
+      await Promise.allSettled(requests);
       setFeedbackSent(true);        // show thank-you message
     } catch (e) {
       // silently ignore network errors
