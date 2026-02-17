@@ -18,9 +18,7 @@ async function readPromptTemplate() {
 
 function buildSystemPrompt(template, assessmentQuestion) {
   const question = assessmentQuestion || "Not provided";
-  return template
-    .replace("[INSERT_ASSESSMENT_QUESTION]", question)
-    .replace("{{ASSESSMENT_QUESTION}}", question);
+  return template.replace("[INSERT_ASSESSMENT_QUESTION]", question);
 }
 
 export default async function handler(req, res) {
