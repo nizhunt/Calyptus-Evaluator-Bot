@@ -46,16 +46,15 @@ export default function AdminEvaluationsDashboard({ session }) {
 
       if (!res.ok) {
         setError(payload?.error || "Unable to load evaluations.");
-        setLoading(false);
         return;
       }
 
       setRecords(payload.records || []);
     } catch {
       setError("Unable to load evaluations.");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -122,16 +121,15 @@ export default function AdminEvaluationsDashboard({ session }) {
       if (!res.ok) {
         const payload = await res.json();
         window.alert(payload?.error || "Failed to delete evaluation.");
-        setDeletingId("");
         return;
       }
 
       setRecords((prev) => prev.filter((record) => record.id !== id));
     } catch {
       window.alert("Failed to delete evaluation.");
+    } finally {
+      setDeletingId("");
     }
-
-    setDeletingId("");
   };
 
   const logout = async () => {
@@ -350,7 +348,6 @@ export async function getServerSideProps(context) {
     props: {
       session: {
         email: session.email,
-        name: session.name || "",
       },
     },
   };

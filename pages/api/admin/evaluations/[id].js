@@ -9,8 +9,7 @@ async function getEvaluationBlob(id) {
 }
 
 export default async function handler(req, res) {
-  const session = requireAdminApiSession(req, res);
-  if (!session) return;
+  if (!requireAdminApiSession(req, res)) return;
 
   const { id } = req.query;
 

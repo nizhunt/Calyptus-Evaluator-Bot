@@ -219,7 +219,7 @@ export default function EvaluationDetail({ record, summary, id }) {
 }
 
 export async function getServerSideProps(context) {
-  const { session, redirect } = requireAdminPageSession(context);
+  const { redirect } = requireAdminPageSession(context);
 
   if (redirect) {
     return { redirect };
@@ -250,10 +250,6 @@ export async function getServerSideProps(context) {
         id,
         record,
         summary,
-        session: {
-          email: session.email,
-          name: session.name || "",
-        },
       },
     };
   } catch {
