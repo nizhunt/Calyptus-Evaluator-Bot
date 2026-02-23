@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
 import InhousePluginRecorder from "../components/InhousePluginRecorder";
+import BufferedVideoPlayer from "../components/BufferedVideoPlayer";
 import GuidedTour from "../components/GuidedTour";
 import ReactMarkdown from "react-markdown";
 
@@ -28,6 +29,7 @@ export default function Home() {
   const [isLocal, setIsLocal] = useState(false);
   const [isChatUnlocked, setIsChatUnlocked] = useState(false);
   const [recordingUrl, setRecordingUrl] = useState("");
+  const [recordingDurationSeconds, setRecordingDurationSeconds] = useState(0);
   const [transcript, setTranscript] = useState("");
   const loomButtonRef = useRef(null);
   const [response, setResponse] = useState("");
@@ -107,6 +109,7 @@ export default function Home() {
       setHasCompletedRecording(false);
       setIsLoading(false);
       setRecordingUrl("");
+      setRecordingDurationSeconds(0);
       setTranscript("");
       setRecorderId(null);
       return;
@@ -134,9 +137,10 @@ export default function Home() {
     }
   };
 
-  const handleRecorderVideoReady = ({ recordingId, playbackUrl }) => {
+  const handleRecorderVideoReady = ({ recordingId, playbackUrl, durationSeconds }) => {
     setRecorderId(recordingId || null);
     setRecordingUrl(playbackUrl || "");
+    setRecordingDurationSeconds(Math.max(0, Number(durationSeconds) || 0));
     setHasCompletedRecording(true);
     setIsLoading(false);
     setIsRecording(false);
@@ -202,6 +206,10 @@ export default function Home() {
     formData.append("conversationContent", conversationContent);
     formData.append("inhouseTranscript", transcript || "");
     formData.append("recordingUrl", recordingUrl);
+    formData.append(
+      "recordingDurationSeconds",
+      String(Math.max(0, Number(recordingDurationSeconds) || 0))
+    );
     formData.append("recorderId", recorderId || "");
     formData.append("customInstructions", customInstructions || "");
 
@@ -536,10 +544,10 @@ export default function Home() {
                     />
                   </div>
                 ) : (
-                  <video
+                  <BufferedVideoPlayer
                     src={recordingUrl}
-                    controls
-                    className="w-full h-auto max-w-4xl mx-auto rounded-lg border border-gray-200 bg-black"
+                    knownDurationSeconds={recordingDurationSeconds}
+                    className="w-full"
                   />
                 )}
               </div>

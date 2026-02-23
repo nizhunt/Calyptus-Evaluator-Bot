@@ -125,23 +125,7 @@ export default function ThankYou() {
         </div>
 
         <div className="space-y-3">
-          <button
-            onClick={() => window.close()}
-            className="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white py-3 px-6 rounded-lg font-semibold hover:from-blue-600 hover:to-purple-600 transition-all duration-200 shadow-md"
-          >
-            Close Window
-          </button>
-          
-          <button
-            onClick={() => window.location.href = 'https://calyptus.co'}
-            className="w-full bg-gray-100 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-200 transition-all duration-200"
-          >
-            Return to Homepage
-          </button>
-        </div>
-
-        <div className="mt-6">
-          <div className="mt-4 bg-gray-50 rounded-lg p-4 text-left">
+          <div className="bg-gray-50 rounded-lg p-4 text-left">
             {!feedbackSent ? (
               <>
                 <div className="mb-3">
@@ -189,11 +173,17 @@ export default function ThankYou() {
         </div>
 
         <div className="mt-6 pt-6 border-t border-gray-200">
-          <img
-            src="/calyptus_new_logo.avif"
-            alt="Calyptus Logo"
-            className="h-8 mx-auto opacity-60"
-          />
+          <a
+            href="https://calyptus.co"
+            className="inline-block opacity-60 hover:opacity-100 transition-opacity duration-200"
+            aria-label="Go to Calyptus homepage"
+          >
+            <img
+              src="/calyptus_new_logo.avif"
+              alt="Calyptus Logo"
+              className="h-8 mx-auto"
+            />
+          </a>
         </div>
       </div>
     </div>

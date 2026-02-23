@@ -111,6 +111,7 @@ export default async function handler(req, res) {
     const conversationContent = normalizeField(fields.conversationContent);
     const inhouseTranscript = normalizeField(fields.inhouseTranscript);
     const recordingUrl = normalizeField(fields.recordingUrl);
+    const recordingDurationSecondsRaw = normalizeField(fields.recordingDurationSeconds);
     const recorderId = normalizeField(fields.recorderId);
     const customInstructions = normalizeField(fields.customInstructions);
     const candidateName = normalizeField(fields.candidateName);
@@ -118,6 +119,11 @@ export default async function handler(req, res) {
 
     const screenshotFiles = normalizeFiles(files.screenshots);
     const outputFiles = normalizeFiles(files.outputFile);
+    const recordingDurationSeconds = Number(recordingDurationSecondsRaw);
+    const normalizedRecordingDurationSeconds =
+      Number.isFinite(recordingDurationSeconds) && recordingDurationSeconds > 0
+        ? recordingDurationSeconds
+        : 0;
 
     const screenshotSummary =
       screenshotFiles.length > 0
@@ -181,6 +187,7 @@ export default async function handler(req, res) {
       evaluation: JSON.stringify(parsedEvaluation),
       metadata: {
         recordingUrl,
+        recordingDurationSeconds: normalizedRecordingDurationSeconds,
         recorderId,
         candidate: {
           name: candidateName || "",

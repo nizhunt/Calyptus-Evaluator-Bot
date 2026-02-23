@@ -1,4 +1,5 @@
 import { list } from "@vercel/blob";
+import BufferedVideoPlayer from "../../components/BufferedVideoPlayer";
 
 export default function Evaluation({ evaluation }) {
   let parsedData;
@@ -65,6 +66,10 @@ export default function Evaluation({ evaluation }) {
   const metadata = parsedData.data
     ? parsedData.data.metadata
     : parsedData.metadata;
+  const recordingDurationSeconds = Math.max(
+    0,
+    Number(metadata?.recordingDurationSeconds) || 0
+  );
 
   let parsedEval;
   try {
@@ -151,10 +156,10 @@ export default function Evaluation({ evaluation }) {
                   />
                 </div>
               ) : (
-                <video
+                <BufferedVideoPlayer
                   src={recordingUrl}
-                  controls
-                  className="w-full h-auto rounded-lg border border-gray-200 bg-black"
+                  knownDurationSeconds={recordingDurationSeconds}
+                  className="w-full max-w-none"
                 />
               )}
             </div>
