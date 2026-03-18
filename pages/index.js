@@ -19,23 +19,19 @@ export default function Home() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [recordingLink, setRecordingLink] = useState("");
-  const [transcriptionLink, setTranscriptionLink] = useState("");
   const [screenshots, setScreenshots] = useState([null, null, null]);
   const [outputFile, setOutputFile] = useState(null);
   const [conversationFile, setConversationFile] = useState(null);
-  const [isUnlocked, setIsUnlocked] = useState(false);
   const [isLocal, setIsLocal] = useState(false);
   const [isChatUnlocked, setIsChatUnlocked] = useState(false);
   const [recordingUrl, setRecordingUrl] = useState("");
   const [recordingDurationSeconds, setRecordingDurationSeconds] = useState(0);
   const [transcript, setTranscript] = useState("");
-  const loomButtonRef = useRef(null);
-  const [response, setResponse] = useState("");
   const [loading, setLoading] = useState(false);
   const chatMessagesRef = useRef(null);
   const submitFormRef = useRef(null);
+  const hasSentOpeningMessage = useRef(false);
+  const activeFetchControllers = useRef(new Set());
   const router = useRouter();
 
   // JWT Token handling states
@@ -46,9 +42,17 @@ export default function Home() {
 
   useEffect(() => {
     if (chatMessagesRef.current) {
-      chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
+      chatMessagesRef.current.scrollTop = chatMessagesRef.current?.scrollHeight;
     }
   }, [messages, isTyping]);
+
+  // Abort any in-flight fetch requests on unmount
+  useEffect(() => {
+    return () => {
+      activeFetchControllers.current.forEach((c) => c.abort());
+      activeFetchControllers.current.clear();
+    };
+  }, []);
 
   useEffect(() => {
     const local = window.location.hostname === "localhost";
@@ -58,6 +62,8 @@ export default function Home() {
 
   // JWT Token handling effect
   useEffect(() => {
+    const controller = new AbortController();
+
     const handleJWTToken = async () => {
       const { token } = router.query;
 
@@ -68,6 +74,7 @@ export default function Home() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ token }),
+            signal: controller.signal,
           });
 
           if (response.ok) {
@@ -83,7 +90,9 @@ export default function Home() {
             // Optionally redirect to error page or show error message
           }
         } catch (error) {
-          console.error("Error validating token:", error);
+          if (error.name !== "AbortError") {
+            console.error("Error validating token:", error);
+          }
         }
       }
     };
@@ -91,9 +100,10 @@ export default function Home() {
     if (router.isReady) {
       handleJWTToken();
     }
+
+    return () => controller.abort();
   }, [router.isReady, router.query]);
 
-  const [isRecording, setIsRecording] = useState(false);
   const [hasStartedRecording, setHasStartedRecording] = useState(false);
   const [hasCompletedRecording, setHasCompletedRecording] = useState(false);
   const [recorderId, setRecorderId] = useState(null);
@@ -104,7 +114,6 @@ export default function Home() {
   const handleRecorderLifecycleUpdate = (nextState) => {
     if (nextState === "recording") {
       setIsChatUnlocked(true);
-      setIsRecording(true);
       setHasStartedRecording(true);
       setHasCompletedRecording(false);
       setIsLoading(false);
@@ -112,27 +121,26 @@ export default function Home() {
       setRecordingDurationSeconds(0);
       setTranscript("");
       setRecorderId(null);
+      if (!hasSentOpeningMessage.current) {
+        hasSentOpeningMessage.current = true;
+        fetchOpeningMessage();
+      }
       return;
     }
 
     if (["stopping", "uploading", "transcribing"].includes(nextState)) {
       setHasCompletedRecording(true);
       setIsLoading(true);
-      if (nextState === "stopping") {
-        setIsRecording(false);
-      }
       return;
     }
 
     if (nextState === "video_ready") {
-      setIsRecording(false);
       setHasCompletedRecording(true);
       setIsLoading(false);
       return;
     }
 
     if (nextState === "error") {
-      setIsRecording(false);
       setIsLoading(false);
     }
   };
@@ -143,7 +151,6 @@ export default function Home() {
     setRecordingDurationSeconds(Math.max(0, Number(durationSeconds) || 0));
     setHasCompletedRecording(true);
     setIsLoading(false);
-    setIsRecording(false);
   };
 
   const handleRecorderTranscriptReady = ({ transcriptText }) => {
@@ -152,17 +159,44 @@ export default function Home() {
 
   const handleRecorderError = (error) => {
     console.error("Recorder error:", error);
-    setIsRecording(false);
     setIsLoading(false);
   };
 
+  const fetchOpeningMessage = async () => {
+    const controller = new AbortController();
+    activeFetchControllers.current.add(controller);
+    setIsTyping(true);
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          assessmentQuestion,
+          message: "The candidate has just started the assessment. Introduce yourself briefly in character as the stakeholder and let them know they can ask you clarifying questions about the requirements. Keep it to 1-2 sentences.",
+          history: [],
+        }),
+        signal: controller.signal,
+      });
+      const data = await res.json();
+      if (res.ok && data.response) {
+        setMessages([{ sender: "bot", content: data.response }]);
+      }
+    } catch {
+      // Silent fail — not critical
+    }
+    activeFetchControllers.current.delete(controller);
+    setIsTyping(false);
+  };
+
   const handleSend = async () => {
-    if (!input.trim() || !isChatUnlocked) return;
+    if (!input.trim() || !isChatUnlocked || isTyping) return;
     const newMessages = [...messages, { sender: "user", content: input }];
     setMessages(newMessages);
     setInput("");
     setIsTyping(true);
 
+    const controller = new AbortController();
+    activeFetchControllers.current.add(controller);
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -170,24 +204,30 @@ export default function Home() {
         body: JSON.stringify({
           assessmentQuestion,
           message: input,
-          history: newMessages,
+          history: newMessages.slice(-20),
         }),
+        signal: controller.signal,
       });
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Something went wrong");
+      }
       setMessages([...newMessages, { sender: "bot", content: data.response }]);
     } catch (error) {
-      setMessages([
-        ...newMessages,
-        { sender: "bot", content: "Error: " + error.message },
-      ]);
+      if (error.name !== "AbortError") {
+        setMessages([
+          ...newMessages,
+          { sender: "bot", content: "Sorry, I couldn't process that. Please try again." },
+        ]);
+      }
     }
+    activeFetchControllers.current.delete(controller);
     setIsTyping(false);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setShowModal(false);
 
     let conversationContent = messages
       .map((msg) => `**${msg.sender.toUpperCase()}:** ${msg.content}`)
@@ -221,19 +261,25 @@ export default function Home() {
 
     screenshots
       .filter((s) => s)
-      .forEach((screenshot, index) => {
+      .forEach((screenshot) => {
         formData.append(`screenshots`, screenshot);
       });
     if (outputFile) {
       formData.append("outputFile", outputFile);
     }
 
+    const controller = new AbortController();
+    activeFetchControllers.current.add(controller);
     try {
       const res = await fetch("/api/evaluate", {
         method: "POST",
         body: formData,
+        signal: controller.signal,
       });
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Evaluation failed. Please try again.");
+      }
 
       const saveRes = await fetch("/api/save-evaluation", {
         method: "POST",
@@ -257,8 +303,12 @@ export default function Home() {
             },
           },
         }),
+        signal: controller.signal,
       });
       const saveData = await saveRes.json();
+      if (!saveRes.ok) {
+        throw new Error(saveData.error || "Failed to save evaluation.");
+      }
 
       // Call webhook with evaluation data
       const evaluationUrl = `${window.location.origin}/evaluation/${saveData.id}`;
@@ -277,14 +327,16 @@ export default function Home() {
         timestamp: new Date().toISOString()
       };
 
-      // Send webhook notification (don't wait for response)
-      fetch("https://nishant-calyptus.app.n8n.cloud/webhook/5ab1cb27-230e-4d1b-8699-4876018ceacf", {
+      // Send webhook notification via server-side proxy (don't wait for response)
+      fetch("/api/webhook-notify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(webhookPayload),
+        signal: controller.signal,
       }).catch(webhookError => {
-        console.error("Webhook call failed:", webhookError);
-        // Don't show error to user - webhook failure shouldn't block the flow
+        if (webhookError.name !== "AbortError") {
+          console.error("Webhook call failed:", webhookError);
+        }
       });
 
       // Keep sensitive data out of URL and pass it via session storage instead.
@@ -297,6 +349,7 @@ export default function Home() {
             creatorName: tokenData?.employerName || "",
             creatorEmail: tokenData?.emailId || "",
             evaluationId: saveData.id || "",
+            hasEmployer: !!(tokenData?.employerName || tokenData?.emailId),
           })
         );
       } catch (storageError) {
@@ -305,12 +358,13 @@ export default function Home() {
 
       router.push("/thank-you");
     } catch (error) {
-      alert("Error: " + error.message);
+      if (error.name !== "AbortError") {
+        alert("Error: " + error.message);
+      }
     }
+    activeFetchControllers.current.delete(controller);
     setLoading(false);
   };
-
-  // Removed handleDownload function
 
   const handleTourComplete = (candidateData = {}) => {
     setShowTour(false);
@@ -485,7 +539,7 @@ export default function Home() {
                     : "Ask a question about the project..."
                 }
                 rows={1}
-                onKeyPress={(e) => {
+                onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     handleSend();
@@ -494,8 +548,8 @@ export default function Home() {
               />
               <button
                 onClick={handleSend}
-                disabled={!isChatUnlocked}
-                className={`send-button w-12 h-12 rounded-full text-white flex items-center justify-center ${!isChatUnlocked
+                disabled={!isChatUnlocked || isTyping}
+                className={`send-button w-12 h-12 rounded-full text-white flex items-center justify-center ${!isChatUnlocked || isTyping
                   ? "bg-gray-400 cursor-not-allowed"
                   : "bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
                   }`}
@@ -523,7 +577,7 @@ export default function Home() {
               }`}
           >
             {isLoading && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-md mb-6">
+              <div className="bg-white rounded-lg p-4 shadow-md mb-6">
                 <h3 className="text-lg font-medium mb-2">
                   Processing Recording...
                 </h3>
@@ -533,23 +587,12 @@ export default function Home() {
               </div>
             )}
             {!isLoading && recordingUrl && hasCompletedRecording && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-md mb-6">
-                {recordingUrl.includes("/share/") ? (
-                  <div className="w-full max-w-4xl mx-auto overflow-hidden rounded-lg border border-gray-200 shadow-sm bg-black aspect-video">
-                    <iframe
-                      src={recordingUrl.replace("/share/", "/embed/")}
-                      frameBorder="0"
-                      allowFullScreen
-                      className="w-full h-full"
-                    />
-                  </div>
-                ) : (
-                  <BufferedVideoPlayer
-                    src={recordingUrl}
-                    knownDurationSeconds={recordingDurationSeconds}
-                    className="w-full"
-                  />
-                )}
+              <div className="bg-white rounded-lg p-4 shadow-md mb-6">
+                <BufferedVideoPlayer
+                  src={recordingUrl}
+                  knownDurationSeconds={recordingDurationSeconds}
+                  className="w-full"
+                />
               </div>
             )}
             <form
@@ -594,30 +637,6 @@ export default function Home() {
                   <h3 className="text-lg font-semibold text-gray-800 mb-4">
                     Only for Testing
                   </h3>
-                  <div className="form-group mb-4">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 required">
-                      Recording Link
-                    </label>
-                    <input
-                      type="url"
-                      value={recordingLink}
-                      onChange={(e) => setRecordingLink(e.target.value)}
-                      className="w-full p-3 border border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white text-gray-800 placeholder-gray-500 shadow-sm hover:shadow-md transition-shadow duration-200"
-                      placeholder="https://example.com/recording"
-                    />
-                  </div>
-                  <div className="form-group mb-4">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 required">
-                      Transcription Link
-                    </label>
-                    <input
-                      type="url"
-                      value={transcriptionLink}
-                      onChange={(e) => setTranscriptionLink(e.target.value)}
-                      className="w-full p-3 border border-gray-300 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white text-gray-800 placeholder-gray-500 shadow-sm hover:shadow-md transition-shadow duration-200"
-                      placeholder="https://example.com/transcription"
-                    />
-                  </div>
                   <div className="form-group">
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Conversation Markdown File (Optional)
@@ -634,9 +653,14 @@ export default function Home() {
               <div className="flex justify-end gap-3 md:col-span-2">
                 <button
                   type="submit"
-                  className="btn-primary px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 w-full mx-4"
+                  disabled={loading || !recordingUrl}
+                  className={`btn-primary px-6 py-3 text-white rounded-lg w-full mx-4 ${
+                    loading || !recordingUrl
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : "bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
+                  }`}
                 >
-                  Save Submission
+                  {loading ? "Evaluating..." : !recordingUrl ? "Recording required to submit" : "Save Submission"}
                 </button>
               </div>
             </form>

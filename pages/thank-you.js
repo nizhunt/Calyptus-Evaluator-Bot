@@ -8,6 +8,7 @@ export default function ThankYou() {
   const [creatorName, setCreatorName] = useState('');
   const [creatorEmail, setCreatorEmail] = useState('');
   const [evaluationId, setEvaluationId] = useState('');
+  const [hasEmployer, setHasEmployer] = useState(true);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [feedbackSent, setFeedbackSent] = useState(false);
@@ -83,6 +84,7 @@ export default function ThankYou() {
         if (parsed?.creatorName) setCreatorName(parsed.creatorName);
         if (parsed?.creatorEmail) setCreatorEmail(parsed.creatorEmail);
         if (parsed?.evaluationId) setEvaluationId(parsed.evaluationId);
+        if (parsed?.hasEmployer !== undefined) setHasEmployer(parsed.hasEmployer);
         hasStoredData = true;
       }
     } catch (error) {
@@ -124,6 +126,20 @@ export default function ThankYou() {
           </p>
         </div>
 
+        {!hasEmployer && evaluationId && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+            <p className="text-green-800 text-sm font-semibold mb-1">Your evaluation results are ready</p>
+            <a
+              href={`/evaluation/${evaluationId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-800 text-sm underline"
+            >
+              View your evaluation report
+            </a>
+          </div>
+        )}
+
         <div className="space-y-3">
           <div className="bg-gray-50 rounded-lg p-4 text-left">
             {!feedbackSent ? (
@@ -136,6 +152,7 @@ export default function ThankYou() {
                         key={star}
                         onClick={() => setRating(star)}
                         className={`text-2xl ${star <= rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                        aria-label={`Rate ${star} out of 5 stars`}
                       >
                         ★
                       </button>

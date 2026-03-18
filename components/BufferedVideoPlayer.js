@@ -60,6 +60,17 @@ export default function BufferedVideoPlayer({
   const [duration, setDuration] = useState(Math.max(0, Number(knownDurationSeconds) || 0));
   const [currentTime, setCurrentTime] = useState(0);
   const [bufferedEnd, setBufferedEnd] = useState(0);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setIsLoaded(false);
+    setHasError(false);
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setBufferedEnd(0);
+    setDuration(Math.max(0, Number(knownDurationSeconds) || 0));
+  }, [src, knownDurationSeconds]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -83,25 +94,43 @@ export default function BufferedVideoPlayer({
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
     const onEnded = () => setIsPlaying(false);
+    const onLoaded = () => {
+      setIsLoaded(true);
+      setHasError(false);
+      syncDurationAndBuffer();
+    };
+    const onError = () => {
+      setHasError(true);
+      setIsPlaying(false);
+    };
 
     video.addEventListener("loadedmetadata", syncDurationAndBuffer);
+    video.addEventListener("loadeddata", onLoaded);
+    video.addEventListener("canplay", onLoaded);
     video.addEventListener("durationchange", syncDurationAndBuffer);
     video.addEventListener("progress", syncDurationAndBuffer);
     video.addEventListener("timeupdate", onTimeUpdate);
     video.addEventListener("play", onPlay);
     video.addEventListener("pause", onPause);
     video.addEventListener("ended", onEnded);
+    video.addEventListener("error", onError);
 
     syncDurationAndBuffer();
+    if (video.readyState >= 2) {
+      setIsLoaded(true);
+    }
 
     return () => {
       video.removeEventListener("loadedmetadata", syncDurationAndBuffer);
+      video.removeEventListener("loadeddata", onLoaded);
+      video.removeEventListener("canplay", onLoaded);
       video.removeEventListener("durationchange", syncDurationAndBuffer);
       video.removeEventListener("progress", syncDurationAndBuffer);
       video.removeEventListener("timeupdate", onTimeUpdate);
       video.removeEventListener("play", onPlay);
       video.removeEventListener("pause", onPause);
       video.removeEventListener("ended", onEnded);
+      video.removeEventListener("error", onError);
     };
   }, [src, knownDurationSeconds]);
 
@@ -117,7 +146,7 @@ export default function BufferedVideoPlayer({
 
   const handleTogglePlay = async () => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || hasError) return;
 
     if (video.paused) {
       try {
@@ -132,12 +161,22 @@ export default function BufferedVideoPlayer({
 
   const handleSeek = (event) => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || duration <= 0) return;
 
     const nextTime = Number(event.target.value || 0);
     video.currentTime = nextTime;
     setCurrentTime(nextTime);
   };
+
+  const isPlayDisabled = hasError || !src;
+  const isSeekDisabled = hasError || duration <= 0;
+  const timeLabel = hasError
+    ? "Unable to load video"
+    : duration > 0
+      ? `${formatTime(currentTime)} / ${formatTime(duration)}`
+      : isLoaded
+        ? `${formatTime(currentTime)} / --:--`
+        : "Loading...";
 
   return (
     <div className={`w-full max-w-4xl mx-auto rounded-lg border border-gray-200 bg-black overflow-hidden ${className}`}>
@@ -167,20 +206,20 @@ export default function BufferedVideoPlayer({
             onChange={handleSeek}
             className="video-seek absolute inset-0 w-full h-5 cursor-pointer appearance-none bg-transparent"
             aria-label="Seek video"
-            disabled={duration <= 0}
+            disabled={isSeekDisabled}
           />
         </div>
         <div className="mt-2 flex items-center justify-between text-xs text-gray-600">
           <button
             type="button"
             onClick={handleTogglePlay}
-            className="px-2 py-1 rounded border border-gray-300 hover:bg-gray-100"
+            disabled={isPlayDisabled}
+            className={`px-2 py-1 rounded border border-gray-300 ${isPlayDisabled ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-100"}`}
+            aria-label={isPlaying ? "Pause video" : "Play video"}
           >
             {isPlaying ? "Pause" : "Play"}
           </button>
-          <span>
-            {formatTime(currentTime)} / {formatTime(duration)}
-          </span>
+          <span>{timeLabel}</span>
         </div>
       </div>
       <style jsx>{`

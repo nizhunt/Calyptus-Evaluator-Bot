@@ -12,6 +12,12 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "evaluationId is required" });
   }
 
+  if (rating !== undefined && (typeof rating !== "number" || rating < 1 || rating > 5)) {
+    return res.status(400).json({ error: "rating must be a number between 1 and 5" });
+  }
+
+  const sanitizedComment = typeof comment === "string" ? comment.slice(0, 5000) : "";
+
   try {
     const { blobs } = await list({ prefix: `evaluations/${evaluationId}.json` });
 
@@ -25,7 +31,7 @@ export default async function handler(req, res) {
 
     const updatedRecord = updateRecordWithFeedback(raw, {
       stars: rating,
-      comment,
+      comment: sanitizedComment,
     });
 
     await put(`evaluations/${evaluationId}.json`, JSON.stringify(updatedRecord), {
@@ -35,9 +41,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ ok: true });
   } catch (error) {
-    return res.status(500).json({
-      error:
-        error instanceof Error ? error.message : "Failed to save feedback",
-    });
+    console.error("[save-feedback]", error instanceof Error ? error.message : error);
+    return res.status(500).json({ error: "Failed to save feedback" });
   }
 }

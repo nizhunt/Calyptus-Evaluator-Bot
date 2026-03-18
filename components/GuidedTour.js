@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const tourSteps = [
   {
@@ -66,6 +66,7 @@ export default function GuidedTour({ onComplete, initialCandidate }) {
   const [currentStep, setCurrentStep] = useState(0);
   const [isActive, setIsActive] = useState(true);
   const [highlightedElement, setHighlightedElement] = useState(null);
+  const savedStyles = useRef(new Map());
 
   // Candidate info state
   const [candidateName, setCandidateName] = useState("");
@@ -168,7 +169,11 @@ export default function GuidedTour({ onComplete, initialCandidate }) {
 
             // Handle unblur functionality
             if (tourSteps[currentStep].unblurTarget) {
-              // Remove blur from the target element
+              // Save and override element styles
+              savedStyles.current.set(element, {
+                filter: element.style.filter,
+                pointerEvents: element.style.pointerEvents,
+              });
               element.style.filter = "none";
               element.style.pointerEvents = "auto";
 
@@ -177,14 +182,17 @@ export default function GuidedTour({ onComplete, initialCandidate }) {
                 ".pointer-events-none.opacity-50.blur-sm"
               );
               blurredElements.forEach((child) => {
-                // For step 6 (submit-work), unblur everything including submission form
-                // For other steps, skip submission form elements to keep them disabled
                 if (
                   tourSteps[currentStep].id !== "submit-work" &&
                   child.closest(".submit-form-section")
                 ) {
-                  return; // Don't unblur submission form elements for non-submit steps
+                  return;
                 }
+                savedStyles.current.set(child, {
+                  filter: child.style.filter,
+                  pointerEvents: child.style.pointerEvents,
+                  opacity: child.style.opacity,
+                });
                 child.style.filter = "none";
                 child.style.pointerEvents = "auto";
                 child.style.opacity = "1";
@@ -209,35 +217,13 @@ export default function GuidedTour({ onComplete, initialCandidate }) {
           el.classList.remove("tour-highlight");
         });
 
-        if (highlightedElement) {
-          highlightedElement.style.outline = "";
-          highlightedElement.style.outlineOffset = "";
-          highlightedElement.style.zIndex = "";
-          highlightedElement.style.position = "";
-          highlightedElement.style.filter = "";
-          highlightedElement.style.pointerEvents = "";
-          highlightedElement.style.backgroundColor = "";
-          highlightedElement.style.borderRadius = "";
-
-          // Restore blur for child elements if needed
-          // But keep submission form disabled if it should be
-          const blurredElements = highlightedElement.querySelectorAll(
-            ".pointer-events-none.opacity-50.blur-sm"
-          );
-          blurredElements.forEach((child) => {
-            // For step 6 (submit-work), we unblurred everything, so restore everything
-            // For other steps, skip submission form elements to keep them disabled
-            if (
-              tourSteps[currentStep].id !== "submit-work" &&
-              child.closest(".submit-form-section")
-            ) {
-              return; // Don't restore submission form elements for non-submit steps
-            }
-            child.style.filter = "";
-            child.style.pointerEvents = "";
-            child.style.opacity = "";
-          });
+        // Restore all saved inline styles
+        for (const [el, styles] of savedStyles.current.entries()) {
+          for (const [prop, value] of Object.entries(styles)) {
+            el.style[prop] = value;
+          }
         }
+        savedStyles.current.clear();
       };
     }
   }, [currentStep, isActive, highlightedElement]);
@@ -271,34 +257,13 @@ export default function GuidedTour({ onComplete, initialCandidate }) {
       el.classList.remove("tour-highlight");
     });
 
-    if (highlightedElement) {
-      highlightedElement.style.outline = "";
-      highlightedElement.style.outlineOffset = "";
-      highlightedElement.style.zIndex = "";
-      highlightedElement.style.position = "";
-      highlightedElement.style.filter = "";
-      highlightedElement.style.pointerEvents = "";
-      highlightedElement.style.backgroundColor = "";
-      highlightedElement.style.borderRadius = "";
-
-      // Re-blur submission form elements when tour ends (if we're on step 6)
-      if (tourSteps[currentStep].id === "submit-work") {
-        const submissionForm = highlightedElement.querySelector(
-          ".submit-form-section"
-        );
-        if (submissionForm) {
-          const blurredElements = submissionForm.querySelectorAll(
-            ".pointer-events-none.opacity-50.blur-sm"
-          );
-          blurredElements.forEach((child) => {
-            // Restore the original blur state
-            child.style.filter = "";
-            child.style.pointerEvents = "";
-            child.style.opacity = "";
-          });
-        }
+    // Restore all saved inline styles
+    for (const [el, styles] of savedStyles.current.entries()) {
+      for (const [prop, value] of Object.entries(styles)) {
+        el.style[prop] = value;
       }
     }
+    savedStyles.current.clear();
 
     onComplete({ name: candidateName, email: candidateEmail });
   };
@@ -388,6 +353,9 @@ export default function GuidedTour({ onComplete, initialCandidate }) {
               : "translate(-50%, 0)",
           }}
           onMouseDown={handleMouseDown}
+          role="dialog"
+          aria-modal="true"
+          aria-label={currentTourStep.title}
         >
           <div className="mb-4">
             <h2 className="text-xl font-bold text-gray-900 mb-2">

@@ -6,36 +6,48 @@ function getIdFromPath(pathname = "") {
   return pathname.replace(/^evaluations\//, "").replace(/\.json$/, "");
 }
 
-async function listAllEvaluationBlobs() {
-  const all = [];
-  let cursor;
+const DEFAULT_LIMIT = 50;
+const CONCURRENCY_LIMIT = 5;
 
-  while (true) {
-    const response = await list({ prefix: "evaluations/", cursor });
-    all.push(...response.blobs);
+async function listEvaluationBlobs({ limit = DEFAULT_LIMIT, cursor } = {}) {
+  const blobs = [];
+  let nextCursor = cursor;
+
+  while (blobs.length < limit) {
+    const response = await list({
+      prefix: "evaluations/",
+      cursor: nextCursor,
+      limit: Math.min(limit - blobs.length, 1000),
+    });
+
+    blobs.push(...response.blobs);
 
     if (!response.hasMore || !response.cursor) {
+      nextCursor = undefined;
       break;
     }
 
-    cursor = response.cursor;
+    nextCursor = response.cursor;
   }
 
-  return all;
+  // If we collected more than requested (unlikely but defensive), trim and
+  // keep the cursor so the client can pick up where we left off.
+  if (blobs.length > limit) {
+    blobs.length = limit;
+    // nextCursor stays as-is so the next page can continue
+  }
+
+  return { blobs, nextCursor };
 }
 
-export default async function handler(req, res) {
-  if (req.method !== "GET") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+async function fetchBlobRecords(blobs) {
+  const results = [];
 
-  if (!requireAdminApiSession(req, res)) return;
+  for (let i = 0; i < blobs.length; i += CONCURRENCY_LIMIT) {
+    const batch = blobs.slice(i, i + CONCURRENCY_LIMIT);
 
-  try {
-    const blobs = await listAllEvaluationBlobs();
-
-    const records = await Promise.all(
-      blobs.map(async (blob) => {
+    const batchResults = await Promise.all(
+      batch.map(async (blob) => {
         try {
           const response = await fetch(blob.url);
           const text = await response.text();
@@ -48,13 +60,33 @@ export default async function handler(req, res) {
       })
     );
 
+    results.push(...batchResults);
+  }
+
+  return results.filter(Boolean);
+}
+
+export default async function handler(req, res) {
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  if (!requireAdminApiSession(req, res)) return;
+
+  try {
+    const limit = Math.max(1, Math.min(200, parseInt(req.query.limit, 10) || DEFAULT_LIMIT));
+    const cursor = req.query.cursor || undefined;
+
+    const { blobs, nextCursor } = await listEvaluationBlobs({ limit, cursor });
+
+    const records = await fetchBlobRecords(blobs);
+
     const sortedRecords = records
-      .filter(Boolean)
       .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
 
     return res.status(200).json({
       records: sortedRecords,
-      count: sortedRecords.length,
+      nextCursor: nextCursor || null,
     });
   } catch (error) {
     return res.status(500).json({

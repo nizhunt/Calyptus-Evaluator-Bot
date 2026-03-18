@@ -1,0 +1,25 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Recording {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  status          String   @default("idle")
+  clientSessionId String?
+  blobUrl         String?
+  blobPathname    String?
+  transcriptText  String?
+  errorCode       String?
+  errorMessage    String?
+
+  @@index([clientSessionId])
+  @@index([status])
+  @@index([createdAt])
+}

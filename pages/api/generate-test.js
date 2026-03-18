@@ -1,67 +1,4 @@
-const JWT_SECRET =
-  process.env.JWT_SECRET || "your-secret-key-change-in-production";
-
-// Base64 URL encode function
-function base64UrlEncode(str) {
-  return Buffer.from(str)
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=/g, "");
-}
-
-// Create HMAC SHA256 signature
-function createSignature(data, secret) {
-  const crypto = require("crypto");
-  return crypto
-    .createHmac("sha256", secret)
-    .update(data)
-    .digest("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=/g, "");
-}
-
-// Generate JWT token
-function generateToken(payload, secret, expiresIn = "infinity") {
-  const header = {
-    alg: "HS256",
-    typ: "JWT",
-  };
-
-  const now = Math.floor(Date.now() / 1000);
-  let expiration;
-
-  // Parse expiration time
-  if (expiresIn === "infinity") {
-    // Don't set expiration for infinite tokens
-    expiration = null;
-  } else if (expiresIn.endsWith("d")) {
-    const days = parseInt(expiresIn.slice(0, -1));
-    expiration = now + days * 24 * 60 * 60;
-  } else {
-    expiration = now + parseInt(expiresIn);
-  }
-
-  const tokenPayload = {
-    ...payload,
-    iat: now,
-  };
-
-  // Only add exp if expiration is set
-  if (expiration !== null) {
-    tokenPayload.exp = expiration;
-  }
-
-  const encodedHeader = base64UrlEncode(JSON.stringify(header));
-  const encodedPayload = base64UrlEncode(JSON.stringify(tokenPayload));
-  const signature = createSignature(
-    `${encodedHeader}.${encodedPayload}`,
-    secret
-  );
-
-  return `${encodedHeader}.${encodedPayload}.${signature}`;
-}
+import { generateToken } from "../../lib/jwt";
 
 export default function handler(req, res) {
   if (req.method !== "POST") {
@@ -77,11 +14,20 @@ export default function handler(req, res) {
     });
   }
 
+  // Validate expiresIn to prevent arbitrary token lifespans
+  const allowedExpirations = ["1d", "3d", "7d", "14d", "30d", "infinity"];
+  const normalizedExpiry = expiresIn || "infinity";
+  if (!allowedExpirations.includes(normalizedExpiry)) {
+    return res.status(400).json({
+      error: `Invalid expiresIn value. Allowed: ${allowedExpirations.join(", ")}`,
+    });
+  }
+
   try {
     const token = generateToken(
       { employerName, question, customInstructions, emailId },
-      JWT_SECRET,
-      expiresIn || "infinity"
+      undefined,
+      normalizedExpiry
     );
 
     const baseUrl =
@@ -100,8 +46,7 @@ export default function handler(req, res) {
       expiresIn: expiresIn || "7d",
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({ error: "Failed to generate test: " + error.message });
+    console.error("[generate-test]", error instanceof Error ? error.message : error);
+    res.status(500).json({ error: "Failed to generate test" });
   }
 }
