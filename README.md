@@ -23,6 +23,8 @@ Note: Prompt templates are in `data/`:
 
    ```
    OPENAI_API_KEY=your_openai_api_key_here
+   GENERATE_TEST_API_KEY=your_generate_test_api_key_here
+   EVALUATION_COMPLETE_API_KEY=your_optional_callback_api_key
    ```
 
 4. Run locally:

@@ -1,16 +1,29 @@
 import { generateToken } from "../../lib/jwt";
+import { authorizeGenerateTestRequest } from "../../lib/generate-test-auth";
 
 export default function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { employerName, question, customInstructions, emailId, expiresIn } =
+  if (!authorizeGenerateTestRequest(req, res)) {
+    return;
+  }
+
+  const {
+    id,
+    is_test,
+    employerName,
+    question,
+    customInstructions,
+    emailId,
+    expiresIn,
+  } =
     req.body;
 
-  if (!employerName || !question || !emailId) {
+  if (!id || typeof is_test !== "boolean" || !employerName || !question || !emailId) {
     return res.status(400).json({
-      error: "Employer name, question, and email ID are required",
+      error: "ID, is_test, employer name, question, and email ID are required",
     });
   }
 
@@ -25,7 +38,7 @@ export default function handler(req, res) {
 
   try {
     const token = generateToken(
-      { employerName, question, customInstructions, emailId },
+      { id, is_test, employerName, question, customInstructions, emailId },
       undefined,
       normalizedExpiry
     );
@@ -37,13 +50,15 @@ export default function handler(req, res) {
     const testUrl = `${baseUrl}/?token=${token}`;
 
     res.status(200).json({
+      id,
+      is_test,
       token,
       testUrl,
       employerName,
       question,
       customInstructions,
       emailId,
-      expiresIn: expiresIn || "7d",
+      expiresIn: normalizedExpiry,
     });
   } catch (error) {
     console.error("[generate-test]", error instanceof Error ? error.message : error);

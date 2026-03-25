@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
+import { requireAdminPageSession } from "../lib/admin-auth";
 
 export default function GenerateTest() {
+  const [testId, setTestId] = useState("");
+  const [isTest, setIsTest] = useState(false);
   const [employerName, setEmployerName] = useState("");
   const [question, setQuestion] = useState("");
   const [customInstructions, setCustomInstructions] = useState("");
@@ -20,6 +23,8 @@ export default function GenerateTest() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          id: testId,
+          is_test: isTest,
           employerName,
           question,
           customInstructions,
@@ -64,6 +69,35 @@ export default function GenerateTest() {
 
         <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200">
           <form onSubmit={handleGenerate} className="space-y-6">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Test ID *
+              </label>
+              <input
+                type="text"
+                value={testId}
+                onChange={(e) => setTestId(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                placeholder="Enter external test identifier"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Send To
+              </label>
+              <label className="flex items-center gap-3 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={isTest}
+                  onChange={(e) => setIsTest(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                Use dev/test result endpoint (`is_test=true`)
+              </label>
+            </div>
+
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Employer Name *
@@ -174,6 +208,12 @@ export default function GenerateTest() {
 
                 <div className="text-sm text-gray-600">
                   <p>
+                    <strong>Test ID:</strong> {result.id}
+                  </p>
+                  <p>
+                    <strong>is_test:</strong> {String(result.is_test)}
+                  </p>
+                  <p>
                     <strong>Employer:</strong> {result.employerName}
                   </p>
                   <p>
@@ -202,4 +242,21 @@ export default function GenerateTest() {
       </div>
     </div>
   );
+}
+
+export async function getServerSideProps(context) {
+  const { session, redirect } = requireAdminPageSession(context);
+
+  if (redirect) {
+    return { redirect };
+  }
+
+  return {
+    props: {
+      session: {
+        email: session.email,
+        name: session.name || "",
+      },
+    },
+  };
 }

@@ -289,6 +289,8 @@ export default function Home() {
             evaluation: data.evaluation,
             metadata: {
               ...(data.metadata || {}),
+              sourceTestId: tokenData?.id || "",
+              is_test: !!tokenData?.is_test,
               companyName: tokenData?.employerName || "",
               testCreator: {
                 name: tokenData?.employerName || "",
@@ -310,35 +312,6 @@ export default function Home() {
         throw new Error(saveData.error || "Failed to save evaluation.");
       }
 
-      // Call webhook with evaluation data
-      const evaluationUrl = `${window.location.origin}/evaluation/${saveData.id}`;
-      const webhookPayload = {
-        evaluationUrl,
-        evaluationData: data.evaluation,
-        metadata: data.metadata,
-        testCreator: {
-          name: tokenData?.employerName || "Unknown",
-          email: tokenData?.emailId || "Unknown"
-        },
-        candidate: {
-          name: candidateData.name || "Unknown",
-          email: candidateData.email || "Unknown"
-        },
-        timestamp: new Date().toISOString()
-      };
-
-      // Send webhook notification via server-side proxy (don't wait for response)
-      fetch("/api/webhook-notify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(webhookPayload),
-        signal: controller.signal,
-      }).catch(webhookError => {
-        if (webhookError.name !== "AbortError") {
-          console.error("Webhook call failed:", webhookError);
-        }
-      });
-
       // Keep sensitive data out of URL and pass it via session storage instead.
       try {
         window.sessionStorage.setItem(
@@ -348,6 +321,8 @@ export default function Home() {
             candidateEmail: candidateData.email || "",
             creatorName: tokenData?.employerName || "",
             creatorEmail: tokenData?.emailId || "",
+            sourceTestId: tokenData?.id || "",
+            isTest: !!tokenData?.is_test,
             evaluationId: saveData.id || "",
             hasEmployer: !!(tokenData?.employerName || tokenData?.emailId),
           })

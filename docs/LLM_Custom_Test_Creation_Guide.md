@@ -6,12 +6,14 @@ This guide shows Large Language Models (LLMs) how to create custom assessment te
 
 To create a custom test, make a POST request to `/api/generate-test` with:
 
+- **id**: External identifier for this test request
+- **is_test**: Boolean flag. `true` routes completion results to the dev Calyptus API, `false` routes them to prod
 - **employerName**: Company/organization name
 - **question**: The assessment task or question
 - **emailId**: Contact email
 - **customInstructions**: Optional evaluation criteria
 
-No authentication required - the API generates a JWT token for you.
+Authentication required via `Authorization: Bearer <GENERATE_TEST_API_KEY>`.
 
 ## API Reference
 
@@ -19,10 +21,19 @@ No authentication required - the API generates a JWT token for you.
 
 **POST** `/api/generate-test`
 
+**Headers:**
+
+```http
+Authorization: Bearer <GENERATE_TEST_API_KEY>
+Content-Type: application/json
+```
+
 **Request:**
 
 ```json
 {
+  "id": "3c31d38b-ef02-4845-a23a-312abd56c151",
+  "is_test": true,
   "employerName": "Tech Corp",
   "question": "Build a React component for user authentication",
   "emailId": "hr@techcorp.com",
@@ -34,6 +45,8 @@ No authentication required - the API generates a JWT token for you.
 
 ```json
 {
+  "id": "3c31d38b-ef02-4845-a23a-312abd56c151",
+  "is_test": true,
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "testUrl": "https://assessment.calyptus.co/?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "employerName": "Tech Corp",
@@ -59,6 +72,8 @@ No authentication required - the API generates a JWT token for you.
 
 ```json
 {
+  "id": "3c31d38b-ef02-4845-a23a-312abd56c151",
+  "is_test": true,
   "employerName": "Tech Corp",
   "question": "Build a React component for user authentication",
   "customInstructions": "Focus on security and code quality",
@@ -74,8 +89,13 @@ No authentication required - the API generates a JWT token for you.
 ```javascript
 const response = await fetch("/api/generate-test", {
   method: "POST",
-  headers: { "Content-Type": "application/json" },
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${process.env.GENERATE_TEST_API_KEY}`,
+  },
   body: JSON.stringify({
+    id: "3c31d38b-ef02-4845-a23a-312abd56c151",
+    is_test: true,
     employerName: "Acme Corp",
     question: "Create a REST API for a todo application",
     emailId: "hiring@acme.com",
@@ -91,8 +111,13 @@ console.log("Share this link:", testUrl);
 ```javascript
 const response = await fetch("/api/generate-test", {
   method: "POST",
-  headers: { "Content-Type": "application/json" },
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${process.env.GENERATE_TEST_API_KEY}`,
+  },
   body: JSON.stringify({
+    id: "3c31d38b-ef02-4845-a23a-312abd56c151",
+    is_test: false,
     employerName: "TechStart Inc",
     question: "Build a real-time chat application using WebSockets",
     emailId: "tech@techstart.com",
@@ -125,6 +150,8 @@ Custom instructions let you specify additional evaluation criteria beyond the st
 
 ```json
 {
+  "id": "3c31d38b-ef02-4845-a23a-312abd56c151",
+  "is_test": true,
   "employerName": "Company Name",
   "question": "Assessment task",
   "customInstructions": "Custom criteria (optional)",
@@ -144,13 +171,16 @@ Custom instructions let you specify additional evaluation criteria beyond the st
 
 ```json
 // Missing required fields
-{ "error": "Employer name, question, and email ID are required" }
+{ "error": "ID, is_test, employer name, question, and email ID are required" }
 
 // Invalid token
 { "error": "Invalid token signature" }
 
 // Wrong HTTP method
 { "error": "Method not allowed" }
+
+// Missing or invalid API key
+{ "error": "Unauthorized" }
 ```
 
 ## Best Practices
@@ -159,6 +189,7 @@ Custom instructions let you specify additional evaluation criteria beyond the st
 2. **Error Handling**: Handle API errors gracefully
 3. **Clear Instructions**: Make custom evaluation criteria specific and actionable
 4. **Secure Sharing**: Use HTTPS when sharing test URLs
-5. **Token Storage**: Tokens are permanent - store them securely if needed
+5. **API Key Handling**: Store `GENERATE_TEST_API_KEY` only in server-side environment variables
+6. **Token Storage**: Tokens are permanent - store them securely if needed
 
 That's it! The API handles JWT generation, token validation, and integration with the assessment platform automatically.

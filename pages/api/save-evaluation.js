@@ -1,6 +1,10 @@
 import { list, put } from "@vercel/blob";
 import { randomUUID } from "crypto";
 import { buildStoredEvaluationRecord } from "../../lib/evaluation-schema";
+import {
+  buildEvaluationCompletionPayload,
+  notifyEvaluationCompletion,
+} from "../../lib/evaluation-completion";
 
 export default async function handler(req, res) {
   if (req.method !== "POST" && req.method !== "GET") {
@@ -16,7 +20,23 @@ export default async function handler(req, res) {
         access: "public",
       });
 
-      return res.status(200).json({ id });
+      let callback = { ok: true, skipped: true };
+      try {
+        const payload = buildEvaluationCompletionPayload({ record, req });
+        callback = await notifyEvaluationCompletion(payload);
+      } catch (error) {
+        console.error(
+          "[save-evaluation callback]",
+          error instanceof Error ? error.message : error
+        );
+        callback = {
+          ok: false,
+          skipped: false,
+          error: "Evaluation completion callback failed",
+        };
+      }
+
+      return res.status(200).json({ id, callback });
     }
 
     const { id } = req.query;

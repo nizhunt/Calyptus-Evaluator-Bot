@@ -15,6 +15,8 @@ export default function handler(req, res) {
     const decoded = verifyToken(token);
 
     res.status(200).json({
+      id: decoded.id,
+      is_test: decoded.is_test,
       employerName: decoded.employerName,
       question: decoded.question,
       customInstructions: decoded.customInstructions,
