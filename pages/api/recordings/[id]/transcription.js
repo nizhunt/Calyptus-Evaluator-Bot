@@ -183,135 +183,79 @@ function enqueueTranscription(recordingId, input) {
           errorMessage: error instanceof Error ? error.message : String(error),
         },
       });
-    } finally {
-      // no-op; status is tracked in the database
     }
   })();
 }
 
 async function transcribeRecording(input) {
-  // Priority 1: audio chunks (new default path)
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
   if (input.audioChunkUrls.length > 0) {
-    return transcribeAudioChunks(input.audioChunkUrls);
+    return transcribeUrls(openai, input.audioChunkUrls);
   }
-  // Priority 3: backup audio (legacy single-file)
   if (input.backupAudioUrl) {
-    return transcribeSingleFile(input.backupAudioUrl);
+    return transcribeUrls(openai, [input.backupAudioUrl]);
   }
-  // Priority 4: video blob (last resort)
   if (!input.blobUrl) {
     throw new Error("No blob URL provided for transcription");
   }
-  return transcribeSingleFile(input.blobUrl);
-}
-
-function createOpenAIClient() {
-  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-}
-
-async function transcribeSingleFile(fileUrl) {
-  const openai = createOpenAIClient();
-  const response = await fetch(fileUrl);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch recording: ${response.status}`);
-  }
-
-  const mimeType = response.headers.get("content-type") || "video/webm";
-  const fileBuffer = Buffer.from(await response.arrayBuffer());
-
-  if (fileBuffer.byteLength > OPENAI_TRANSCRIPTION_MAX_BYTES) {
-    throw new Error(
-      `Transcription input exceeds upload limit (${OPENAI_TRANSCRIPTION_MAX_BYTES} bytes).`
-    );
-  }
-
-  return transcribeBuffer(openai, {
-    buffer: fileBuffer,
-    filename: "recording.webm",
-    mimeType,
-  });
+  return transcribeUrls(openai, [input.blobUrl]);
 }
 
 const TRANSCRIPTION_CONCURRENCY = 3;
 
-async function transcribeAudioChunks(audioChunkUrls) {
-  const openai = createOpenAIClient();
-  const total = audioChunkUrls.length;
-  // Pre-allocate results array to maintain order regardless of completion order
+async function transcribeUrls(openai, urls) {
+  const total = urls.length;
   const results = new Array(total).fill(null);
-  let successfulChunks = 0;
-  let firstChunkError = null;
+  let successCount = 0;
+  let firstError = null;
 
-  async function transcribeChunk(i) {
+  async function transcribeOne(i) {
     try {
-      const response = await fetch(audioChunkUrls[i]);
+      const response = await fetch(urls[i]);
       if (!response.ok) {
-        throw new Error(
-          `Failed to fetch audio chunk ${i + 1}/${total}: ${response.status}`
-        );
+        throw new Error(`Failed to fetch audio ${i + 1}/${total}: ${response.status}`);
       }
 
       const mimeType = response.headers.get("content-type") || "audio/webm";
-      const chunkBuffer = Buffer.from(await response.arrayBuffer());
+      const buffer = Buffer.from(await response.arrayBuffer());
 
-      if (chunkBuffer.byteLength > OPENAI_TRANSCRIPTION_MAX_BYTES) {
-        throw new Error(
-          `Audio chunk ${i + 1} exceeds transcription upload limit.`
-        );
+      if (buffer.byteLength > OPENAI_TRANSCRIPTION_MAX_BYTES) {
+        throw new Error(`Audio ${i + 1} exceeds transcription upload limit.`);
       }
 
-      const ext = extensionFromContentType(mimeType);
-      const chunkText = await transcribeBuffer(openai, {
-        buffer: chunkBuffer,
-        filename: `chunk-${String(i + 1).padStart(4, "0")}.${ext}`,
-        mimeType,
+      const ext = extensionFromContentType(mimeType, urls[i]);
+      const file = new File([Uint8Array.from(buffer)], `audio-${String(i + 1).padStart(4, "0")}.${ext}`, { type: mimeType });
+      const text = await openai.audio.transcriptions.create({
+        file,
+        model: "whisper-1",
+        language: "en",
+        response_format: "text",
       });
 
-      const normalized = chunkText.replace(/\s+/g, " ").trim();
-      successfulChunks++;
+      const normalized = text.replace(/\s+/g, " ").trim();
+      successCount++;
       if (normalized) results[i] = normalized;
     } catch (error) {
-      if (!firstChunkError) firstChunkError = error;
+      if (!firstError) firstError = error;
       console.warn("[transcription] audio_chunk_failed", { chunkIndex: i, error });
     }
   }
 
-  // Process chunks in batches of TRANSCRIPTION_CONCURRENCY
   for (let batch = 0; batch < total; batch += TRANSCRIPTION_CONCURRENCY) {
     const batchEnd = Math.min(batch + TRANSCRIPTION_CONCURRENCY, total);
     const promises = [];
     for (let i = batch; i < batchEnd; i++) {
-      promises.push(transcribeChunk(i));
+      promises.push(transcribeOne(i));
     }
     await Promise.all(promises);
   }
 
-  if (successfulChunks === 0 && firstChunkError) {
-    throw firstChunkError;
+  if (successCount === 0 && firstError) {
+    throw firstError;
   }
 
   return results.filter(Boolean).join("\n\n");
-}
-
-async function transcribeBuffer(openai, { buffer, filename, mimeType }) {
-  const file = new File([Uint8Array.from(buffer)], filename, { type: mimeType });
-
-  try {
-    const text = await openai.audio.transcriptions.create({
-      file,
-      model: "whisper-1",
-      language: "en",
-      response_format: "text",
-    });
-    return text;
-  } catch (error) {
-    if (error?.status === 413) {
-      throw new Error(
-        `Transcription upload size limit exceeded (${OPENAI_TRANSCRIPTION_MAX_BYTES} bytes).`
-      );
-    }
-    throw error;
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -376,13 +320,23 @@ async function probeContentLength(url) {
   }
 }
 
-function extensionFromContentType(contentType) {
+function extensionFromContentType(contentType, url) {
   if (contentType.includes("webm")) return "webm";
   if (contentType.includes("mp4")) return "mp4";
   if (contentType.includes("mpeg")) return "mp3";
   if (contentType.includes("wav")) return "wav";
   if (contentType.includes("ogg")) return "ogg";
-  return "bin";
+  if (contentType.includes("flac")) return "flac";
+  // Blob storage often returns application/octet-stream — fall back to the URL extension
+  if (url) {
+    try {
+      const pathname = new URL(url).pathname.toLowerCase();
+      const match = pathname.match(/\.(webm|mp4|mp3|wav|ogg|flac|m4a)(?:\?|$)/);
+      if (match) return match[1];
+    } catch {}
+  }
+  // Our recorder always produces webm audio, so default to that
+  return "webm";
 }
 
 function getErrorCode(error) {
