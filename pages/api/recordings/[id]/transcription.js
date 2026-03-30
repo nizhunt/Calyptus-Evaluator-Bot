@@ -217,15 +217,15 @@ async function transcribeUrls(openai, urls) {
         throw new Error(`Failed to fetch audio ${i + 1}/${total}: ${response.status}`);
       }
 
-      const mimeType = response.headers.get("content-type") || "audio/webm";
+      const contentType = response.headers.get("content-type") || "";
       const buffer = Buffer.from(await response.arrayBuffer());
 
       if (buffer.byteLength > OPENAI_TRANSCRIPTION_MAX_BYTES) {
         throw new Error(`Audio ${i + 1} exceeds transcription upload limit.`);
       }
 
-      const ext = extensionFromContentType(mimeType, urls[i]);
-      const file = new File([Uint8Array.from(buffer)], `audio-${String(i + 1).padStart(4, "0")}.${ext}`, { type: mimeType });
+      const { ext, mime } = resolveAudioFormat(contentType, urls[i]);
+      const file = new File([Uint8Array.from(buffer)], `audio-${String(i + 1).padStart(4, "0")}.${ext}`, { type: mime });
       const text = await openai.audio.transcriptions.create({
         file,
         model: "whisper-1",
@@ -320,23 +320,34 @@ async function probeContentLength(url) {
   }
 }
 
-function extensionFromContentType(contentType, url) {
-  if (contentType.includes("webm")) return "webm";
-  if (contentType.includes("mp4")) return "mp4";
-  if (contentType.includes("mpeg")) return "mp3";
-  if (contentType.includes("wav")) return "wav";
-  if (contentType.includes("ogg")) return "ogg";
-  if (contentType.includes("flac")) return "flac";
-  // Blob storage often returns application/octet-stream — fall back to the URL extension
+const EXT_TO_MIME = {
+  webm: "audio/webm",
+  mp4: "audio/mp4",
+  mp3: "audio/mpeg",
+  wav: "audio/wav",
+  ogg: "audio/ogg",
+  flac: "audio/flac",
+  m4a: "audio/mp4",
+};
+
+function resolveAudioFormat(contentType, url) {
+  const ct = contentType || "";
+  if (ct.includes("webm")) return { ext: "webm", mime: "audio/webm" };
+  if (ct.includes("mp4")) return { ext: "mp4", mime: "audio/mp4" };
+  if (ct.includes("mpeg")) return { ext: "mp3", mime: "audio/mpeg" };
+  if (ct.includes("wav")) return { ext: "wav", mime: "audio/wav" };
+  if (ct.includes("ogg")) return { ext: "ogg", mime: "audio/ogg" };
+  if (ct.includes("flac")) return { ext: "flac", mime: "audio/flac" };
+  // Blob storage often returns application/octet-stream — fall back to URL extension
   if (url) {
     try {
       const pathname = new URL(url).pathname.toLowerCase();
       const match = pathname.match(/\.(webm|mp4|mp3|wav|ogg|flac|m4a)(?:\?|$)/);
-      if (match) return match[1];
+      if (match) return { ext: match[1], mime: EXT_TO_MIME[match[1]] };
     } catch {}
   }
-  // Our recorder always produces webm audio, so default to that
-  return "webm";
+  // Our recorder always produces webm audio
+  return { ext: "webm", mime: "audio/webm" };
 }
 
 function getErrorCode(error) {
