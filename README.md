@@ -1,4 +1,4 @@
-# Evaluator App
+                                                   # Evaluator App
 
 This is a Next.js application adapted from the original evaluator.js script. It provides a web interface to input evaluation details and uses an API route to securely call the OpenAI API.
 
@@ -16,6 +16,7 @@ This is a Next.js application adapted from the original evaluator.js script. It 
    ```
 
 Note: Prompt templates are in `data/`:
+
 - Evaluation prompt: `data/evaluation_prompt.md`
 - Helper bot prompt: `data/prompts/helperbot-prompt.md`
 
@@ -40,7 +41,6 @@ Note: Prompt templates are in `data/`:
 2. Go to Vercel dashboard, create a new project, and import your repository.
 
 3. In the project settings, add an environment variable:
-
    - Key: OPENAI_API_KEY
    - Value: your_openai_api_key_here
 

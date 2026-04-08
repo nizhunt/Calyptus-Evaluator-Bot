@@ -2,19 +2,53 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Calyptus design tokens (mirror tailwind.config.js — use for non-Tailwind contexts) */
+:root {
+  --calyptus-radius-card: 10px;
+  --calyptus-radius-modal: 20px;
+  --calyptus-shadow-elevated: 0px 4px 10px 0px rgba(16, 24, 40, 0.15);
+  --Grey-Scale-50: #f2f2f3;
+  --White: #ffffff;
+}
+
+.tour-step-card {
+  border-radius: 8px;
+  border: 1px solid var(--Grey-Scale-50, #f2f2f3);
+  background: var(--White, #fff);
+}
+
+/**
+ * `.tour-modal` uses transparent bg so shells don’t paint; combined with
+ * `.tour-step-card` the card must stay white (override transparent !important).
+ */
+.tour-modal.tour-step-card {
+  background-color: var(--White, #ffffff) !important;
+}
+
 .snippyly-recording-preview-steps-dialog {
   max-width: none !important;
 }
 
-/* Ensure tour modal is always on top */
+/* Ensure tour modal is always on top (surface + border live on .tour-step-card) */
 .tour-modal {
   position: fixed !important;
   z-index: 2147483647 !important; /* Maximum possible z-index */
-  background-color: white !important;
+  background-color: transparent !important;
   opacity: 1 !important;
   pointer-events: auto !important;
   user-select: none !important;
   isolation: isolate !important;
+}
+
+/**
+ * Joyride floater tooltips (spotlight + card beside target): do not force position.
+ * `.tour-modal` uses position:fixed and breaks Popper/react-floater placement next to the highlight.
+ */
+.tour-floater-tooltip {
+  z-index: 2147483646 !important;
+  pointer-events: auto !important;
+  max-width: 100%;
+  isolation: isolate;
 }
 
 /* Ensure tour modal wrapper has maximum z-index */
@@ -34,30 +68,47 @@
 .tour-highlight {
   position: relative !important;
   z-index: 2147483644 !important; /* Just below modal wrapper */
-  outline: 4px solid #3b82f6 !important;
+  outline: 4px solid #0c30ad !important;
   outline-offset: 4px !important;
-  background-color: rgba(59, 130, 246, 0.2) !important;
+  background-color: rgba(12, 48, 173, 0.12) !important;
   border-radius: 8px !important;
-  box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.4) !important;
+  box-shadow: 0 0 0 8px rgba(12, 48, 173, 0.25) !important;
   transition: all 0.3s ease !important;
   transform: scale(1.02) !important;
 }
 
-/* Ensure highlighted elements are visible above other content */
-.tour-highlight * {
+/* Block clicks/taps on the spotlighted block while the tour is running (Next lives outside). */
+.tour-active .tour-highlight,
+.tour-active .tour-highlight * {
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
+/* Submit-files dialog: keep onboarding ring but allow choosing files during step 6 */
+.tour-active #submit-files-modal-panel.tour-highlight,
+.tour-active #submit-files-modal-panel.tour-highlight * {
   pointer-events: auto !important;
+  user-select: auto !important;
+}
+
+.tour-active #submit-files-modal-panel.tour-highlight {
+  background-color: #ffffff !important;
+}
+
+.tour-active #submit-files-modal-panel.tour-highlight::before {
+  display: none !important;
 }
 
 /* Add animation for highlighting */
 @keyframes tour-highlight-pulse {
   0% {
-    box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.4);
+    box-shadow: 0 0 0 8px rgba(12, 48, 173, 0.28);
   }
   50% {
-    box-shadow: 0 0 0 12px rgba(59, 130, 246, 0.2);
+    box-shadow: 0 0 0 12px rgba(12, 48, 173, 0.14);
   }
   100% {
-    box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.4);
+    box-shadow: 0 0 0 8px rgba(12, 48, 173, 0.28);
   }
 }
 
@@ -89,20 +140,24 @@
 
 /* Create a spotlight effect for highlighted elements */
 .tour-active .tour-highlight::before {
-  content: '' !important;
+  content: "" !important;
   position: absolute !important;
   top: -20px !important;
   left: -20px !important;
   right: -20px !important;
   bottom: -20px !important;
-  background: radial-gradient(circle at center, rgba(59, 130, 246, 0.1) 0%, transparent 70%) !important;
+  background: radial-gradient(
+    circle at center,
+    rgba(12, 48, 173, 0.1) 0%,
+    transparent 70%
+  ) !important;
   z-index: -1 !important;
   border-radius: 12px !important;
   pointer-events: none !important;
 }
 
 /* Override Velt components to ensure tour modal is always on top */
-[class*="velt-"], 
+[class*="velt-"],
 [class*="snippyly-"] {
   z-index: auto !important;
 }
