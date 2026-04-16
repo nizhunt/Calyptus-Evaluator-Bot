@@ -523,7 +523,7 @@ export default function Home() {
           )}
         </div>
 
-        {/* Main row: recorder (flex) + AI sidebar (416px) */}
+        {/* Main row: recorder (flex) + AI sidebar */}
         <div className="flex flex-col gap-8 lg:flex-row lg:items-stretch lg:gap-8">
           <div
             className={cn(
@@ -540,7 +540,7 @@ export default function Home() {
           </div>
           <div
             className={cn(
-              "chat-section relative flex h-[min(673px,70vh)] max-h-[85vh] w-full min-h-0 flex-col overflow-hidden rounded-calyptus border border-calyptus-border-card bg-white shadow-sm lg:h-[min(673px,85vh)] lg:max-h-[85vh] lg:min-h-0 lg:w-[416px] lg:max-w-[416px] lg:shrink-0",
+              "chat-section relative flex h-[min(673px,70vh)] max-h-[85vh] w-full min-h-0 flex-col overflow-hidden rounded-calyptus border border-calyptus-border-card bg-white shadow-sm lg:h-[min(673px,85vh)] lg:max-h-[85vh] lg:min-h-0 lg:w-[480px] lg:max-w-[480px] lg:shrink-0",
             )}
           >
             <div className="chat-header shrink-0 bg-calyptus-chat-header px-3 pb-3 pt-[22px] text-center text-white">
@@ -586,7 +586,7 @@ export default function Home() {
                   <div
                     className={
                       msg.sender === "user"
-                        ? "max-w-[min(377px,92%)] bg-calyptus-tint rounded-tl-[30px] rounded-tr-[30px] rounded-bl-[30px] rounded-br-none px-[22px] py-[22px] text-[12px] font-medium leading-snug text-calyptus-strong"
+                        ? "max-w-[min(440px,92%)] bg-calyptus-tint rounded-tl-[30px] rounded-tr-[30px] rounded-bl-[30px] rounded-br-none px-[22px] py-[22px] text-[12px] font-medium leading-snug text-calyptus-strong"
                         : "max-w-full min-w-0 flex-1 py-3 text-[12px] font-medium leading-snug text-calyptus-body"
                     }
                   >
@@ -637,7 +637,7 @@ export default function Home() {
                     <div className="flex w-full justify-center">
                       <div
                         className={cn(
-                          "chat-input flex w-full max-w-[392px] gap-2.5 items-center",
+                          "chat-input flex w-full max-w-full gap-2 items-center",
                           "cursor-not-allowed",
                         )}
                       >
@@ -646,7 +646,7 @@ export default function Home() {
                           onChange={(e) => setInput(e.target.value)}
                           disabled={chatDisabled}
                           className={cn(
-                            "min-h-[56px] max-h-[100px] flex-1 resize-none rounded-calyptus border border-solid px-[22px] py-2.5 text-base font-medium leading-[1.4] text-calyptus-strong outline-none transition-shadow placeholder:text-calyptus-muted focus-visible:ring-2 focus-visible:ring-calyptus-purple/30",
+                            "min-h-[48px] font-normal max-h-[120px] flex-1 resize-none rounded-calyptus border border-solid px-4 py-2.5 text-base leading-[1.4] text-calyptus-strong outline-none transition-shadow placeholder:text-calyptus-muted focus-visible:ring-2 focus-visible:ring-calyptus-purple/30",
                             chatDisabled
                               ? "cursor-not-allowed border-calyptus-border-input bg-calyptus-surface-input opacity-80"
                               : "border-calyptus-border-input bg-calyptus-surface-input focus:border-calyptus-purple",
@@ -668,7 +668,7 @@ export default function Home() {
                           type="button"
                           onClick={handleSend}
                           disabled={chatDisabled || isTyping}
-                          className={`send-button size-14 shrink-0 rounded-full text-white flex items-center justify-center transition-opacity ${
+                          className={`send-button size-10 shrink-0 rounded-full text-white flex items-center justify-center transition-opacity ${
                             chatDisabled || isTyping
                               ? "bg-calyptus-subtle cursor-not-allowed"
                               : "bg-calyptus-purple hover:bg-calyptus-purple-hover active:scale-[0.98]"
@@ -676,8 +676,8 @@ export default function Home() {
                           aria-label="Send message"
                         >
                           <svg
-                            width="18"
-                            height="18"
+                            width="15"
+                            height="15"
                             viewBox="0 0 24 24"
                             fill="currentColor"
                             aria-hidden
@@ -699,13 +699,13 @@ export default function Home() {
                 </Tooltip>
               ) : (
                 <div className="flex w-full justify-center">
-                  <div className="chat-input flex w-full max-w-[392px] gap-2.5 items-center">
+                  <div className="chat-input flex w-full max-w-full gap-2 items-center">
                     <textarea
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
                       disabled={chatDisabled}
                       className={cn(
-                        "min-h-[56px] max-h-[100px] flex-1 resize-none rounded-calyptus border border-solid px-[22px] py-2.5 text-base font-medium leading-[1.4] text-calyptus-strong outline-none transition-shadow placeholder:text-calyptus-muted focus-visible:ring-2 focus-visible:ring-calyptus-purple/30",
+                        "min-h-[48px] max-h-[120px] flex-1 resize-none rounded-calyptus border border-solid px-4 py-2.5 text-base leading-[1.4] text-calyptus-strong outline-none font-normal transition-shadow placeholder:text-calyptus-muted focus-visible:ring-2 focus-visible:ring-calyptus-purple/30",
                         chatDisabled
                           ? "cursor-not-allowed border-calyptus-border-input bg-calyptus-surface-input opacity-80"
                           : "border-calyptus-border-input bg-calyptus-surface-input focus:border-calyptus-purple",
@@ -715,7 +715,7 @@ export default function Home() {
                           ? "Start recording to unlock chat..."
                           : "Type question here"
                       }
-                      rows={1}
+                      rows={3}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
@@ -727,7 +727,7 @@ export default function Home() {
                       type="button"
                       onClick={handleSend}
                       disabled={chatDisabled || isTyping}
-                      className={`send-button size-14 shrink-0 rounded-full text-white flex items-center justify-center transition-opacity ${
+                      className={`send-button size-10 shrink-0 rounded-full text-white flex items-center justify-center transition-opacity ${
                         chatDisabled || isTyping
                           ? "bg-calyptus-subtle cursor-not-allowed"
                           : "bg-calyptus-purple hover:bg-calyptus-purple-hover active:scale-[0.98]"
@@ -735,8 +735,8 @@ export default function Home() {
                       aria-label="Send message"
                     >
                       <svg
-                        width="18"
-                        height="18"
+                        width="15"
+                        height="15"
                         viewBox="0 0 24 24"
                         fill="currentColor"
                         aria-hidden
@@ -747,7 +747,7 @@ export default function Home() {
                   </div>
                 </div>
               )}
-              <div className="flex w-full max-w-[392px] flex-col items-center gap-[22px] self-center border-t border-calyptus-border-field pt-[22px]">
+              <div className="flex w-full max-w-full flex-col items-center gap-[22px] self-center border-t border-calyptus-border-field pt-[22px]">
                 <p className="text-center text-sm font-semibold leading-[1.4] text-calyptus-purple px-2">
                   Remember to communicate out loud your thinking process!
                 </p>
