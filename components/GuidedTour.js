@@ -6,6 +6,8 @@ import {
   useId,
   useMemo,
   useCallback,
+  createContext,
+  useContext,
 } from "react";
 import { createPortal, flushSync } from "react-dom";
 import Joyride, { EVENTS, STATUS } from "react-joyride";
@@ -14,6 +16,10 @@ import { Button } from "@/components/ui/button";
 import { calyptus } from "@/lib/calyptus-ui";
 import { cn } from "@/lib/utils";
 import { SUBMIT_FILES_MODAL_PANEL_ID } from "./SubmitFilesModal";
+
+/** Avoid SSR warning: `useLayoutEffect` is a no-op on the server. */
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 const SUBMIT_FILES_MODAL_TARGET = `#${SUBMIT_FILES_MODAL_PANEL_ID}`;
 
@@ -265,6 +271,363 @@ function TourStepCard({
   );
 }
 
+const GuidedTourTooltipContext = createContext(null);
+
+/** Stable component identity for Joyride — avoids remounting inputs on each keystroke. */
+function GuidedTourJoyrideTooltip(props) {
+  const ctx = useContext(GuidedTourTooltipContext);
+  if (!ctx) return null;
+
+  const {
+    candidateName,
+    setCandidateName,
+    candidateEmail,
+    setCandidateEmail,
+    candidateNameId,
+    candidateEmailId,
+    nameError,
+    emailError,
+    isFormValid,
+    onSubmitWorkStepEnter,
+  } = ctx;
+
+  const { index, isLastStep, size, step, tooltipProps, primaryProps } = props;
+  const collectInfo = Boolean(step.data?.collectInfo);
+  const isWelcome = Boolean(step.data?.welcomeLayout);
+  const isCenteredModalTooltip = Boolean(step.data?.centeredModalTooltip);
+  const isArrowTooltip = Boolean(step.data?.arrowTooltip);
+  const cardTooltipMaxPx = step.data?.cardTooltipWidth ?? 320;
+  const cardTooltipMinPx = cardTooltipMaxPx > 320 ? 280 : 260;
+  const progressPct = size > 0 ? ((index + 1) / size) * 100 : 0;
+
+  /** Joyride does not pass `helpers` into custom tooltips — use `primaryProps.onClick`. */
+  const advanceTour = (e) => {
+    primaryProps?.onClick?.(e);
+  };
+
+  const onCandidateSubmit = (e) => {
+    e.preventDefault();
+    if (!isFormValid) return;
+    advanceTour(e);
+  };
+
+  const leavingThinkOutLoud =
+    step.data?.stepId === "think-out-loud" ||
+    index === SUBMIT_WORK_STEP_INDEX - 1;
+
+  const goNext = (e) => {
+    if (collectInfo && isLastStep && !isFormValid) return;
+    /**
+     * Submit-work targets `#submit-files-modal-panel`, which only exists when
+     * SubmitFilesModal is open. Joyride looks up the next target in the same
+     * turn as "Next". `STEP_AFTER` is not emitted for normal continuous tours
+     * (only when controlled / a narrow lifecycle case), so we must open here.
+     */
+    if (leavingThinkOutLoud) {
+      flushSync(() => {
+        onSubmitWorkStepEnter?.();
+      });
+    }
+    advanceTour(e);
+  };
+
+  const primaryLabel =
+    step.data?.primaryButtonLabel ??
+    (isWelcome ? "Start Tour" : isLastStep ? "Start Assessment" : "Next");
+
+  if (isWelcome) {
+    const welcomeCard = (
+      <div
+        className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4"
+        role="presentation"
+      >
+        <div
+          {...tooltipProps}
+          className={cn(
+            "tour-modal tour-step-card bg-white pointer-events-auto flex w-full min-w-0 flex-col items-center gap-[22px] p-[30px] text-center shadow-calyptus-elevated",
+            "w-[min(100vw-2rem,448px)] min-w-[280px] max-w-[448px]",
+            tooltipProps.className,
+          )}
+          style={{
+            ...tooltipProps.style,
+            position: "relative",
+            inset: "auto",
+            margin: 0,
+            transform: "none",
+            width: "min(100vw - 2rem, 448px)",
+            maxWidth: 448,
+            minWidth: 280,
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-label={
+            typeof step.title === "string" ? step.title : "Assessment tour"
+          }
+        >
+          {step.title != null && (
+            <h2 className="w-full text-[20px] font-bold leading-normal text-calyptus-strong">
+              {step.title}
+            </h2>
+          )}
+          <p className="w-full whitespace-pre-wrap text-base font-normal leading-normal text-[#000122]">
+            {step.content}
+          </p>
+          <div
+            className="h-px w-full shrink-0 bg-calyptus-border-input"
+            aria-hidden
+          />
+          <div className="flex w-full justify-center">
+            <Button
+              type="button"
+              variant="modalPrimary"
+              size="modal"
+              className="rounded-xl px-4 py-2 text-sm font-bold leading-[1.4]"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                goNext(e);
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              {primaryLabel}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+    return tourModalPortal(welcomeCard);
+  }
+
+  if (isCenteredModalTooltip) {
+    const centeredCard = (
+      <div
+        className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4"
+        role="presentation"
+      >
+        <div
+          {...tooltipProps}
+          className={cn(
+            "tour-modal tour-step-card bg-white pointer-events-auto w-full min-w-0 border-0 p-0 text-left shadow-calyptus-elevated",
+            tooltipProps.className,
+          )}
+          style={{
+            ...tooltipProps.style,
+            position: "relative",
+            inset: "auto",
+            margin: 0,
+            transform: "none",
+            width: `min(100vw - 2rem, ${cardTooltipMaxPx}px)`,
+            minWidth: cardTooltipMinPx,
+            maxWidth: cardTooltipMaxPx,
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-label={
+            typeof step.title === "string" ? step.title : "Tour step"
+          }
+        >
+          <TourStepCard
+            step={step}
+            index={index}
+            size={size}
+            progressPct={progressPct}
+            primaryLabel={primaryLabel}
+            onNext={goNext}
+            className="px-4 py-4 md:px-6 md:py-5"
+          />
+        </div>
+      </div>
+    );
+    return tourModalPortal(centeredCard);
+  }
+
+  if (isArrowTooltip) {
+    return (
+      <div
+        {...tooltipProps}
+        className={cn(
+          "tour-floater-tooltip w-full min-w-0 border-0 bg-transparent p-0 shadow-none",
+          tooltipProps.className,
+        )}
+        style={{
+          ...tooltipProps.style,
+          width: `min(100vw - 2rem, ${cardTooltipMaxPx}px)`,
+          minWidth: cardTooltipMinPx,
+          maxWidth: cardTooltipMaxPx,
+        }}
+        role="dialog"
+        aria-modal="true"
+        aria-label={
+          typeof step.title === "string" ? step.title : "Tour step"
+        }
+      >
+        <TourStepCard
+          step={step}
+          index={index}
+          size={size}
+          progressPct={progressPct}
+          primaryLabel={primaryLabel}
+          onNext={goNext}
+        />
+      </div>
+    );
+  }
+
+  const finalStepCard = (
+    <div
+      className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4"
+      role="presentation"
+    >
+      <div
+        {...tooltipProps}
+        className={cn(
+          "tour-modal tour-step-card bg-white pointer-events-auto p-6 text-left shadow-calyptus-elevated",
+          "w-[min(100vw-2rem,448px)] min-w-[280px] max-w-[448px]",
+          tooltipProps.className,
+        )}
+        style={{
+          ...tooltipProps.style,
+          position: "relative",
+          inset: "auto",
+          margin: 0,
+          transform: "none",
+          width: "min(100vw - 2rem, 448px)",
+          maxWidth: 448,
+          minWidth: 280,
+        }}
+        role="dialog"
+        aria-modal="true"
+        aria-label={typeof step.title === "string" ? step.title : "Tour"}
+      >
+        <div className="mb-4 min-w-0">
+          {step.title != null && (
+            <h2 className="mb-2 text-xl font-bold leading-snug text-calyptus-strong">
+              {step.title}
+            </h2>
+          )}
+          <p className="whitespace-pre-line text-sm leading-relaxed text-calyptus-body">
+            {step.content}
+          </p>
+        </div>
+
+        {collectInfo && (
+          <form
+            id="guided-tour-candidate-form"
+            className="mb-6 flex flex-col gap-4"
+            noValidate
+            onSubmit={onCandidateSubmit}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div>
+              <label
+                htmlFor={candidateNameId}
+                className="mb-1 block text-xs font-normal leading-snug text-calyptus-body"
+              >
+                <span
+                  className="font-bold text-calyptus-primary-green"
+                  aria-hidden
+                >
+                  *
+                </span>{" "}
+                <span className="sr-only">required, </span>
+                Full name
+              </label>
+              <input
+                id={candidateNameId}
+                name="candidateName"
+                type="text"
+                value={candidateName}
+                onChange={(e) => setCandidateName(e.target.value)}
+                aria-invalid={!!nameError}
+                autoComplete="name"
+                onMouseDown={(e) => e.stopPropagation()}
+                className={cn(
+                  calyptus.fieldInput,
+                  calyptus.fieldInputInvalid,
+                )}
+                placeholder="Enter your full name"
+                required
+              />
+              {nameError && (
+                <p
+                  className="mt-1 text-xs font-medium text-red-600"
+                  role="alert"
+                >
+                  {nameError}
+                </p>
+              )}
+            </div>
+            <div>
+              <label
+                htmlFor={candidateEmailId}
+                className="mb-1 block text-xs font-normal leading-snug text-calyptus-body"
+              >
+                <span
+                  className="font-bold text-calyptus-primary-green"
+                  aria-hidden
+                >
+                  *
+                </span>{" "}
+                <span className="sr-only">required, </span>
+                Email
+              </label>
+              <input
+                id={candidateEmailId}
+                name="candidateEmail"
+                type="email"
+                value={candidateEmail}
+                onChange={(e) => setCandidateEmail(e.target.value)}
+                aria-invalid={!!emailError}
+                autoComplete="email"
+                inputMode="email"
+                onMouseDown={(e) => e.stopPropagation()}
+                className={cn(
+                  calyptus.fieldInput,
+                  calyptus.fieldInputInvalid,
+                )}
+                placeholder="Enter your email address"
+                required
+              />
+              {emailError && (
+                <p
+                  className="mt-1 text-xs font-medium text-red-600"
+                  role="alert"
+                >
+                  {emailError}
+                </p>
+              )}
+            </div>
+          </form>
+        )}
+
+        <div className="flex w-full items-center justify-end gap-3">
+          <Button
+            type={collectInfo ? "submit" : "button"}
+            form={collectInfo ? "guided-tour-candidate-form" : undefined}
+            variant="modalPrimary"
+            size="modal"
+            onClick={
+              collectInfo
+                ? undefined
+                : (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    goNext(e);
+                  }
+            }
+            disabled={collectInfo && !isFormValid}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            {primaryLabel}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+
+  return tourModalPortal(finalStepCard);
+}
+
 export default function GuidedTour({
   onComplete,
   initialCandidate,
@@ -434,7 +797,7 @@ export default function GuidedTour({
     };
   }, [joyrideIndex, run, mounted]);
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!run || !mounted || SUBMIT_WORK_STEP_INDEX < 0) return;
 
     const prev = prevJoyrideIndexRef.current;
@@ -455,353 +818,27 @@ export default function GuidedTour({
     onSubmitWorkStepLeave,
   ]);
 
-  const TourTooltip = useCallback(
-    function TourTooltip(props) {
-      const { index, isLastStep, size, step, tooltipProps, primaryProps } =
-        props;
-      const collectInfo = Boolean(step.data?.collectInfo);
-      const isWelcome = Boolean(step.data?.welcomeLayout);
-      const isCenteredModalTooltip = Boolean(step.data?.centeredModalTooltip);
-      const isArrowTooltip = Boolean(step.data?.arrowTooltip);
-      const cardTooltipMaxPx = step.data?.cardTooltipWidth ?? 320;
-      const cardTooltipMinPx = cardTooltipMaxPx > 320 ? 280 : 260;
-      const progressPct = size > 0 ? ((index + 1) / size) * 100 : 0;
-
-      /** Joyride does not pass `helpers` into custom tooltips — use `primaryProps.onClick`. */
-      const advanceTour = (e) => {
-        primaryProps?.onClick?.(e);
-      };
-
-      const onCandidateSubmit = (e) => {
-        e.preventDefault();
-        if (!isFormValid) return;
-        advanceTour(e);
-      };
-
-      const leavingThinkOutLoud =
-        step.data?.stepId === "think-out-loud" ||
-        index === SUBMIT_WORK_STEP_INDEX - 1;
-
-      const goNext = (e) => {
-        if (collectInfo && isLastStep && !isFormValid) return;
-        /**
-         * Submit-work targets `#submit-files-modal-panel`, which only exists when
-         * SubmitFilesModal is open. Joyride looks up the next target in the same
-         * turn as "Next". `STEP_AFTER` is not emitted for normal continuous tours
-         * (only when controlled / a narrow lifecycle case), so we must open here.
-         */
-        if (leavingThinkOutLoud) {
-          flushSync(() => {
-            onSubmitWorkStepEnter?.();
-          });
-        }
-        advanceTour(e);
-      };
-
-      const primaryLabel =
-        step.data?.primaryButtonLabel ??
-        (isWelcome ? "Start Tour" : isLastStep ? "Start Assessment" : "Next");
-
-      if (isWelcome) {
-        const welcomeCard = (
-          <div
-            className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4"
-            role="presentation"
-          >
-            <div
-              {...tooltipProps}
-              className={cn(
-                "tour-modal tour-step-card bg-white pointer-events-auto flex w-full min-w-0 flex-col items-center gap-[22px] p-[30px] text-center shadow-calyptus-elevated",
-                "w-[min(100vw-2rem,448px)] min-w-[280px] max-w-[448px]",
-                tooltipProps.className,
-              )}
-              style={{
-                ...tooltipProps.style,
-                position: "relative",
-                inset: "auto",
-                margin: 0,
-                transform: "none",
-                width: "min(100vw - 2rem, 448px)",
-                maxWidth: 448,
-                minWidth: 280,
-              }}
-              role="dialog"
-              aria-modal="true"
-              aria-label={
-                typeof step.title === "string" ? step.title : "Assessment tour"
-              }
-            >
-              {step.title != null && (
-                <h2 className="w-full text-[20px] font-bold leading-normal text-calyptus-strong">
-                  {step.title}
-                </h2>
-              )}
-              <p className="w-full whitespace-pre-wrap text-base font-normal leading-normal text-[#000122]">
-                {step.content}
-              </p>
-              <div
-                className="h-px w-full shrink-0 bg-calyptus-border-input"
-                aria-hidden
-              />
-              <div className="flex w-full justify-center">
-                <Button
-                  type="button"
-                  variant="modalPrimary"
-                  size="modal"
-                  className="rounded-xl px-4 py-2 text-sm font-bold leading-[1.4]"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    goNext(e);
-                  }}
-                  onMouseDown={(e) => e.stopPropagation()}
-                >
-                  {primaryLabel}
-                </Button>
-              </div>
-            </div>
-          </div>
-        );
-        return tourModalPortal(welcomeCard);
-      }
-
-      if (isCenteredModalTooltip) {
-        const centeredCard = (
-          <div
-            className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4"
-            role="presentation"
-          >
-            <div
-              {...tooltipProps}
-              className={cn(
-                "tour-modal tour-step-card bg-white pointer-events-auto w-full min-w-0 border-0 p-0 text-left shadow-calyptus-elevated",
-                tooltipProps.className,
-              )}
-              style={{
-                ...tooltipProps.style,
-                position: "relative",
-                inset: "auto",
-                margin: 0,
-                transform: "none",
-                width: `min(100vw - 2rem, ${cardTooltipMaxPx}px)`,
-                minWidth: cardTooltipMinPx,
-                maxWidth: cardTooltipMaxPx,
-              }}
-              role="dialog"
-              aria-modal="true"
-              aria-label={
-                typeof step.title === "string" ? step.title : "Tour step"
-              }
-            >
-              <TourStepCard
-                step={step}
-                index={index}
-                size={size}
-                progressPct={progressPct}
-                primaryLabel={primaryLabel}
-                onNext={goNext}
-                className="px-4 py-4 md:px-6 md:py-5"
-              />
-            </div>
-          </div>
-        );
-        return tourModalPortal(centeredCard);
-      }
-
-      if (isArrowTooltip) {
-        return (
-          <div
-            {...tooltipProps}
-            className={cn(
-              "tour-floater-tooltip w-full min-w-0 border-0 bg-transparent p-0 shadow-none",
-              tooltipProps.className,
-            )}
-            style={{
-              ...tooltipProps.style,
-              width: `min(100vw - 2rem, ${cardTooltipMaxPx}px)`,
-              minWidth: cardTooltipMinPx,
-              maxWidth: cardTooltipMaxPx,
-            }}
-            role="dialog"
-            aria-modal="true"
-            aria-label={
-              typeof step.title === "string" ? step.title : "Tour step"
-            }
-          >
-            <TourStepCard
-              step={step}
-              index={index}
-              size={size}
-              progressPct={progressPct}
-              primaryLabel={primaryLabel}
-              onNext={goNext}
-            />
-          </div>
-        );
-      }
-
-      const finalStepCard = (
-        <div
-          className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4"
-          role="presentation"
-        >
-          <div
-            {...tooltipProps}
-            className={cn(
-              "tour-modal tour-step-card bg-white pointer-events-auto p-6 text-left shadow-calyptus-elevated",
-              "w-[min(100vw-2rem,448px)] min-w-[280px] max-w-[448px]",
-              tooltipProps.className,
-            )}
-            style={{
-              ...tooltipProps.style,
-              position: "relative",
-              inset: "auto",
-              margin: 0,
-              transform: "none",
-              width: "min(100vw - 2rem, 448px)",
-              maxWidth: 448,
-              minWidth: 280,
-            }}
-            role="dialog"
-            aria-modal="true"
-            aria-label={typeof step.title === "string" ? step.title : "Tour"}
-          >
-            <div className="mb-4 min-w-0">
-              {step.title != null && (
-                <h2 className="mb-2 text-xl font-bold leading-snug text-calyptus-strong">
-                  {step.title}
-                </h2>
-              )}
-              <p className="whitespace-pre-line text-sm leading-relaxed text-calyptus-body">
-                {step.content}
-              </p>
-            </div>
-
-            {collectInfo && (
-              <form
-                id="guided-tour-candidate-form"
-                className="mb-6 flex flex-col gap-4"
-                noValidate
-                onSubmit={onCandidateSubmit}
-                onMouseDown={(e) => e.stopPropagation()}
-              >
-                <div>
-                  <label
-                    htmlFor={candidateNameId}
-                    className="mb-1 block text-xs font-normal leading-snug text-calyptus-body"
-                  >
-                    <span
-                      className="font-bold text-calyptus-primary-green"
-                      aria-hidden
-                    >
-                      *
-                    </span>{" "}
-                    <span className="sr-only">required, </span>
-                    Full name
-                  </label>
-                  <input
-                    id={candidateNameId}
-                    name="candidateName"
-                    type="text"
-                    value={candidateName}
-                    onChange={(e) => setCandidateName(e.target.value)}
-                    aria-invalid={!!nameError}
-                    autoComplete="name"
-                    onMouseDown={(e) => e.stopPropagation()}
-                    className={cn(
-                      calyptus.fieldInput,
-                      calyptus.fieldInputInvalid,
-                    )}
-                    placeholder="Enter your full name"
-                    required
-                  />
-                  {nameError && (
-                    <p
-                      className="mt-1 text-xs font-medium text-red-600"
-                      role="alert"
-                    >
-                      {nameError}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label
-                    htmlFor={candidateEmailId}
-                    className="mb-1 block text-xs font-normal leading-snug text-calyptus-body"
-                  >
-                    <span
-                      className="font-bold text-calyptus-primary-green"
-                      aria-hidden
-                    >
-                      *
-                    </span>{" "}
-                    <span className="sr-only">required, </span>
-                    Email
-                  </label>
-                  <input
-                    id={candidateEmailId}
-                    name="candidateEmail"
-                    type="email"
-                    value={candidateEmail}
-                    onChange={(e) => setCandidateEmail(e.target.value)}
-                    aria-invalid={!!emailError}
-                    autoComplete="email"
-                    inputMode="email"
-                    onMouseDown={(e) => e.stopPropagation()}
-                    className={cn(
-                      calyptus.fieldInput,
-                      calyptus.fieldInputInvalid,
-                    )}
-                    placeholder="Enter your email address"
-                    required
-                  />
-                  {emailError && (
-                    <p
-                      className="mt-1 text-xs font-medium text-red-600"
-                      role="alert"
-                    >
-                      {emailError}
-                    </p>
-                  )}
-                </div>
-              </form>
-            )}
-
-            <div className="flex w-full items-center justify-end gap-3">
-              <Button
-                type={collectInfo ? "submit" : "button"}
-                form={collectInfo ? "guided-tour-candidate-form" : undefined}
-                variant="modalPrimary"
-                size="modal"
-                onClick={
-                  collectInfo
-                    ? undefined
-                    : (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        goNext(e);
-                      }
-                }
-                disabled={collectInfo && !isFormValid}
-                onMouseDown={(e) => e.stopPropagation()}
-              >
-                {primaryLabel}
-              </Button>
-            </div>
-          </div>
-        </div>
-      );
-
-      return tourModalPortal(finalStepCard);
-    },
-    [
-      candidateEmail,
-      candidateEmailId,
+  const tooltipContextValue = useMemo(
+    () => ({
       candidateName,
+      setCandidateName,
+      candidateEmail,
+      setCandidateEmail,
       candidateNameId,
+      candidateEmailId,
+      nameError,
       emailError,
       isFormValid,
+      onSubmitWorkStepEnter,
+    }),
+    [
+      candidateName,
+      candidateEmail,
+      candidateNameId,
+      candidateEmailId,
       nameError,
+      emailError,
+      isFormValid,
       onSubmitWorkStepEnter,
     ],
   );
@@ -816,42 +853,44 @@ export default function GuidedTour({
         aria-hidden
       />
 
-      <Joyride
-        steps={steps}
-        run={run}
-        continuous
-        showProgress={false}
-        showSkipButton={false}
-        hideCloseButton
-        disableCloseOnEsc
-        disableOverlayClose
-        spotlightPadding={10}
-        callback={handleJoyrideCallback}
-        tooltipComponent={TourTooltip}
-        styles={{
-          options: {
-            zIndex: 2147483640,
-            arrowColor: "#fff",
-            backgroundColor: "transparent",
-            overlayColor: "rgba(0, 0, 0, 0.15)",
-            primaryColor: "#0C30AD",
-            textColor: "#383D3A",
-            width: 448,
-          },
-          spotlight: {
-            borderRadius: 10,
-          },
-          tooltip: {
-            padding: 0,
-            borderRadius: 8,
-            boxShadow: "none",
-            backgroundColor: "transparent",
-          },
-          tooltipContainer: {
-            textAlign: "left",
-          },
-        }}
-      />
+      <GuidedTourTooltipContext.Provider value={tooltipContextValue}>
+        <Joyride
+          steps={steps}
+          run={run}
+          continuous
+          showProgress={false}
+          showSkipButton={false}
+          hideCloseButton
+          disableCloseOnEsc
+          disableOverlayClose
+          spotlightPadding={10}
+          callback={handleJoyrideCallback}
+          tooltipComponent={GuidedTourJoyrideTooltip}
+          styles={{
+            options: {
+              zIndex: 2147483640,
+              arrowColor: "#fff",
+              backgroundColor: "transparent",
+              overlayColor: "rgba(0, 0, 0, 0.15)",
+              primaryColor: "#0C30AD",
+              textColor: "#383D3A",
+              width: 448,
+            },
+            spotlight: {
+              borderRadius: 10,
+            },
+            tooltip: {
+              padding: 0,
+              borderRadius: 8,
+              boxShadow: "none",
+              backgroundColor: "transparent",
+            },
+            tooltipContainer: {
+              textAlign: "left",
+            },
+          }}
+        />
+      </GuidedTourTooltipContext.Provider>
     </>
   );
 }
