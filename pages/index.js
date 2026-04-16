@@ -646,7 +646,7 @@ export default function Home() {
                           onChange={(e) => setInput(e.target.value)}
                           disabled={chatDisabled}
                           className={cn(
-                            "min-h-[48px] max-h-[120px] flex-1 resize-none rounded-calyptus border border-solid px-4 py-2.5 text-base font-medium leading-[1.4] text-calyptus-strong outline-none transition-shadow placeholder:text-calyptus-muted focus-visible:ring-2 focus-visible:ring-calyptus-purple/30",
+                            "min-h-[48px] font-normal max-h-[120px] flex-1 resize-none rounded-calyptus border border-solid px-4 py-2.5 text-base leading-[1.4] text-calyptus-strong outline-none transition-shadow placeholder:text-calyptus-muted focus-visible:ring-2 focus-visible:ring-calyptus-purple/30",
                             chatDisabled
                               ? "cursor-not-allowed border-calyptus-border-input bg-calyptus-surface-input opacity-80"
                               : "border-calyptus-border-input bg-calyptus-surface-input focus:border-calyptus-purple",
@@ -705,7 +705,7 @@ export default function Home() {
                       onChange={(e) => setInput(e.target.value)}
                       disabled={chatDisabled}
                       className={cn(
-                        "min-h-[48px] max-h-[120px] flex-1 resize-none rounded-calyptus border border-solid px-4 py-2.5 text-base font-medium leading-[1.4] text-calyptus-strong outline-none transition-shadow placeholder:text-calyptus-muted focus-visible:ring-2 focus-visible:ring-calyptus-purple/30",
+                        "min-h-[48px] max-h-[120px] flex-1 resize-none rounded-calyptus border border-solid px-4 py-2.5 text-base leading-[1.4] text-calyptus-strong outline-none font-normal transition-shadow placeholder:text-calyptus-muted focus-visible:ring-2 focus-visible:ring-calyptus-purple/30",
                         chatDisabled
                           ? "cursor-not-allowed border-calyptus-border-input bg-calyptus-surface-input opacity-80"
                           : "border-calyptus-border-input bg-calyptus-surface-input focus:border-calyptus-purple",
