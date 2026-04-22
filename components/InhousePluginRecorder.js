@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { ScreenRecorder } from "../lib/screen-recorder-sdk";
 import { Button } from "./ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -27,6 +27,8 @@ export default function InhousePluginRecorder({
   hasPreviousRecording = false,
 }) {
   const recorderRef = useRef(null);
+  const previewAreaRef = useRef(null);
+  const getPipAnchor = useCallback(() => previewAreaRef.current, []);
   const callbacksRef = useRef({
     onLifecycleUpdate,
     onVideoReady,
@@ -50,6 +52,7 @@ export default function InhousePluginRecorder({
     const recorder = new ScreenRecorder({
       maxDuration: 7200,
       autoStopEnabled: true,
+      getPipAnchor,
       onLifecycleUpdate: (nextState) => {
         setState(nextState);
         callbacksRef.current.onLifecycleUpdate?.(nextState);
@@ -78,7 +81,7 @@ export default function InhousePluginRecorder({
       recorder.destroy();
       recorderRef.current = null;
     };
-  }, []);
+  }, [getPipAnchor]);
 
   const isRecording = state === "recording";
   const isBusy = [
@@ -106,13 +109,14 @@ export default function InhousePluginRecorder({
     <div className="recorder-container flex min-h-0 w-full flex-1 flex-col">
       {/* Black preview area — placeholder until screen capture / recording is active */}
       <div
+        ref={previewAreaRef}
         className={cn(
           "relative min-h-[min(400px,50vh)] flex-1 rounded-calyptus bg-calyptus-strong",
           isRecording && "ring-2 ring-white/10 ring-inset",
         )}
       >
         {isRecording && (
-          <div className="absolute inset-0 flex items-center justify-center p-4">
+          <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center px-4 pb-2 pt-4">
             <div className="flex items-center gap-2 text-sm font-medium text-white/90">
               <div className="size-2 animate-pulse rounded-full bg-red-500" />
               Recording in progress…
