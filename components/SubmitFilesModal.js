@@ -136,6 +136,7 @@ export default function SubmitFilesModal({
   const [mounted, setMounted] = useState(false);
   const [files, setFiles] = useState([]);
   const [dragOver, setDragOver] = useState(false);
+  const [dismissBlockedHint, setDismissBlockedHint] = useState(false);
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -145,11 +146,28 @@ export default function SubmitFilesModal({
   useEffect(() => {
     if (open) {
       setFiles(filesFromScreenshotsAndOutput(screenshots, outputFiles));
+      setDismissBlockedHint(false);
     }
   }, [open, screenshots, outputFiles]);
 
+  useEffect(() => {
+    if (!open || isSubmitting) return;
+    const onKeyDown = (e) => {
+      if (e.key !== "Escape") return;
+      if (files.length === 0) {
+        e.preventDefault();
+        setDismissBlockedHint(true);
+        return;
+      }
+      onClose();
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [open, files.length, isSubmitting, onClose]);
+
   const addFiles = useCallback((incoming) => {
     if (!incoming?.length) return;
+    setDismissBlockedHint(false);
     setFiles((prev) => {
       const next = [...prev];
       for (const f of incoming) {
@@ -179,6 +197,7 @@ export default function SubmitFilesModal({
   const submitMode = typeof onSubmitEvaluation === "function";
 
   const handlePrimary = async () => {
+    if (files.length === 0) return;
     const { screenshots: s, outputFiles: outs } = assignFilesToState(files);
     if (submitMode) {
       await onSubmitEvaluation(s, outs);
@@ -190,9 +209,21 @@ export default function SubmitFilesModal({
     }
   };
 
+  const hasRequiredFiles = files.length > 0;
   const canSubmitEvaluation = Boolean(recordingUrl?.trim());
   const primaryDisabled =
-    isSubmitting || (submitMode && !canSubmitEvaluation);
+    isSubmitting ||
+    !hasRequiredFiles ||
+    (submitMode && !canSubmitEvaluation);
+
+  const tryClose = () => {
+    if (isSubmitting) return;
+    if (!hasRequiredFiles) {
+      setDismissBlockedHint(true);
+      return;
+    }
+    onClose();
+  };
 
   if (!mounted || !open) return null;
 
@@ -200,7 +231,7 @@ export default function SubmitFilesModal({
     <div
       className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black/40 p-4"
       role="presentation"
-      onClick={() => !isSubmitting && onClose()}
+      onClick={tryClose}
     >
       <div
         id={SUBMIT_FILES_MODAL_PANEL_ID}
@@ -266,6 +297,12 @@ export default function SubmitFilesModal({
             <p className="text-sm text-calyptus-muted">
               screenshots/md/pdf (max. 4 uploads)
             </p>
+            {dismissBlockedHint && (
+              <p className="text-sm font-medium text-red-600" role="alert">
+                Upload at least one file before you can submit or close this
+                window.
+              </p>
+            )}
           </div>
         </div>
 

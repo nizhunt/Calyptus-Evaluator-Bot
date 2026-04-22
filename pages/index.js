@@ -122,6 +122,12 @@ export default function Home() {
             setAssessmentQuestion(data.question);
             setCustomInstructions(data.customInstructions || "");
             setIsCustomTest(true);
+            if (data.emailId) {
+              setCandidateData((prev) => ({
+                ...prev,
+                email: data.emailId,
+              }));
+            }
             // Make the assessment question read-only for custom tests
           } else {
             console.error("Invalid token");
