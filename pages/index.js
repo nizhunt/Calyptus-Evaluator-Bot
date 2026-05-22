@@ -55,6 +55,7 @@ export default function Home() {
   const [recordingUrl, setRecordingUrl] = useState("");
   const [recordingDurationSeconds, setRecordingDurationSeconds] = useState(0);
   const [transcript, setTranscript] = useState("");
+  const [transcriptionError, setTranscriptionError] = useState("");
   const [loading, setLoading] = useState(false);
   const chatMessagesRef = useRef(null);
   const submitFormRef = useRef(null);
@@ -156,6 +157,7 @@ export default function Home() {
   const [candidateData, setCandidateData] = useState({ name: "", email: "" });
 
   const chatDisabled = !isChatUnlocked || !hasStartedRecording;
+  const hasTranscript = transcript.trim().length > 0;
 
   const handleRecorderLifecycleUpdate = (nextState) => {
     if (nextState === "recording") {
@@ -166,6 +168,7 @@ export default function Home() {
       setRecordingUrl("");
       setRecordingDurationSeconds(0);
       setTranscript("");
+      setTranscriptionError("");
       setRecorderId(null);
       if (!hasSentOpeningMessage.current) {
         hasSentOpeningMessage.current = true;
@@ -181,6 +184,12 @@ export default function Home() {
     }
 
     if (nextState === "video_ready") {
+      setHasCompletedRecording(true);
+      setIsLoading(false);
+      return;
+    }
+
+    if (nextState === "transcript_ready") {
       setHasCompletedRecording(true);
       setIsLoading(false);
       return;
@@ -205,10 +214,20 @@ export default function Home() {
 
   const handleRecorderTranscriptReady = ({ transcriptText }) => {
     setTranscript(transcriptText || "");
+    setTranscriptionError("");
+    setIsLoading(false);
   };
 
   const handleRecorderError = (error) => {
     console.error("Recorder error:", error);
+    if (
+      error?.stage === "transcription" ||
+      error?.code === "TRANSCRIPTION_FAILED"
+    ) {
+      setTranscriptionError(
+        error.message || "Transcript generation failed. Please re-record.",
+      );
+    }
     setIsLoading(false);
   };
 
@@ -404,13 +423,19 @@ export default function Home() {
 
   useEffect(() => {
     if (SHOW_LEGACY_SUBMIT_SECTION) return;
-    if (!recordingUrl || !hasCompletedRecording || isLoading || loading) {
+    if (
+      !recordingUrl ||
+      !hasCompletedRecording ||
+      !hasTranscript ||
+      isLoading ||
+      loading
+    ) {
       return;
     }
     if (autoOpenedSubmitModalForUrlRef.current === recordingUrl) return;
     autoOpenedSubmitModalForUrlRef.current = recordingUrl;
     setSubmitFilesModalOpen(true);
-  }, [recordingUrl, hasCompletedRecording, isLoading, loading]);
+  }, [recordingUrl, hasCompletedRecording, hasTranscript, isLoading, loading]);
 
   const handleTourComplete = (candidateData = {}) => {
     setShowTour(false);
@@ -872,13 +897,15 @@ export default function Home() {
                       type="submit"
                       variant="primary"
                       size="submit"
-                      disabled={loading || !recordingUrl}
+                      disabled={loading || !recordingUrl || !hasTranscript}
                       className="max-w-md"
                     >
                       {loading
                         ? "Evaluating..."
                         : !recordingUrl
                           ? "Recording required to submit"
+                          : !hasTranscript
+                            ? "Waiting for transcript"
                           : "Save Submission"}
                     </Button>
                   </div>
@@ -893,6 +920,7 @@ export default function Home() {
           >
             {hasCompletedRecording &&
               recordingUrl &&
+              hasTranscript &&
               !isLoading &&
               !loading && (
                 <Button
@@ -905,6 +933,15 @@ export default function Home() {
                     : "Open submission"}
                 </Button>
               )}
+            {hasCompletedRecording &&
+              recordingUrl &&
+              !hasTranscript &&
+              (isLoading || transcriptionError) && (
+                <p className="text-center text-sm font-medium text-calyptus-body">
+                  {transcriptionError ||
+                    "Generating transcript before submission..."}
+                </p>
+              )}
           </div>
         )}
         <SubmitFilesModal
@@ -913,6 +950,7 @@ export default function Home() {
           screenshots={screenshots}
           outputFiles={outputFiles}
           recordingUrl={recordingUrl}
+          isEvaluationReady={hasTranscript}
           isSubmitting={loading}
           onApply={
             SHOW_LEGACY_SUBMIT_SECTION

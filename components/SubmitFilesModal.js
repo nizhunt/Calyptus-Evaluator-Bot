@@ -128,6 +128,7 @@ export default function SubmitFilesModal({
   /** Primary flow: run full evaluation submit (same as page handleSubmit). */
   onSubmitEvaluation,
   recordingUrl = "",
+  isEvaluationReady = true,
   isSubmitting = false,
 }) {
   const titleId = useId();
@@ -214,7 +215,7 @@ export default function SubmitFilesModal({
   const primaryDisabled =
     isSubmitting ||
     !hasRequiredFiles ||
-    (submitMode && !canSubmitEvaluation);
+    (submitMode && (!canSubmitEvaluation || !isEvaluationReady));
 
   const tryClose = () => {
     if (isSubmitting) return;
@@ -301,6 +302,14 @@ export default function SubmitFilesModal({
               <p className="text-sm font-medium text-red-600" role="alert">
                 Upload at least one file before you can submit or close this
                 window.
+              </p>
+            )}
+            {submitMode && canSubmitEvaluation && !isEvaluationReady && (
+              <p
+                className="text-sm font-medium text-calyptus-body"
+                role="status"
+              >
+                Generating transcript before submission...
               </p>
             )}
           </div>

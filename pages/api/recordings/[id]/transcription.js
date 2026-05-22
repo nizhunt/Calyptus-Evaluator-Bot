@@ -87,18 +87,12 @@ export default async function handler(req, res) {
       }
     }
 
-    if (recording.status === "transcribing") {
-      return res
-        .status(409)
-        .json({ error: "Transcription already in progress", status: "transcribing" });
-    }
-
     if (recording.status === "transcript_ready" && recording.transcriptText) {
       return res.status(200).json({ success: true, status: "transcript_ready" });
     }
 
-    // Validate blobUrl is accessible before proceeding
-    if (resolvedBlobUrl) {
+    // Validate blobUrl is accessible only when it will actually be used
+    if (resolvedBlobUrl && !hasChunks && !backupAudioUrl) {
       try {
         const headRes = await fetch(resolvedBlobUrl, { method: "HEAD" });
         if (!headRes.ok) {
@@ -115,8 +109,9 @@ export default async function handler(req, res) {
       }
     }
 
-    await prisma.recording.update({
-      where: { id },
+    // Atomic update: only proceed if not already transcribing/complete
+    const updated = await prisma.recording.updateMany({
+      where: { id, status: { notIn: ["transcribing", "transcript_ready"] } },
       data: {
         status: "transcribing",
         blobUrl: resolvedBlobUrl,
@@ -124,6 +119,9 @@ export default async function handler(req, res) {
         errorMessage: null,
       },
     });
+    if (updated.count === 0) {
+      return res.status(409).json({ error: "Transcription already in progress", status: "transcribing" });
+    }
 
     enqueueTranscription(id, {
       blobUrl: resolvedBlobUrl,
@@ -239,6 +237,7 @@ async function transcribeUrls(openai, urls) {
     } catch (error) {
       if (!firstError) firstError = error;
       console.warn("[transcription] audio_chunk_failed", { chunkIndex: i, error });
+      results[i] = `[transcription unavailable for segment ${i + 1}]`;
     }
   }
 
