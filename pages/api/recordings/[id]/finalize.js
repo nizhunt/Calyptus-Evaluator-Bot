@@ -16,14 +16,6 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "No video chunk URLs provided" });
   }
 
-  const recording = await prisma.recording.findUnique({
-    where: { id },
-    select: { id: true },
-  });
-  if (!recording) {
-    return res.status(404).json({ error: "Recording not found" });
-  }
-
   try {
     const ext = mimeType?.includes("mp4") ? "mp4" : "webm";
     const filename = `recording_${id}.${ext}`;
@@ -54,9 +46,12 @@ export default async function handler(req, res) {
       contentType: mimeType || "video/webm",
     });
 
-    await prisma.recording.update({
+    // Update DB in the background — don't block the response on a DB round-trip
+    prisma.recording.update({
       where: { id },
       data: { blobUrl: blob.url },
+    }).catch((err) => {
+      console.error("[finalize] db_update_failed", { recordingId: id, error: err?.message });
     });
 
     return res.status(200).json({ url: blob.url });
