@@ -463,7 +463,6 @@ export default async function handler(req, res) {
           schema: evaluationSchema,
         },
       },
-      temperature: 0.2,
     });
 
     const rawOutput = response.output_text || "{}";

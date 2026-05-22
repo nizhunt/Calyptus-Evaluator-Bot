@@ -200,61 +200,73 @@ async function transcribeRecording(input) {
   return transcribeUrls(openai, [input.blobUrl]);
 }
 
-const TRANSCRIPTION_CONCURRENCY = 3;
-
 async function transcribeUrls(openai, urls) {
-  const total = urls.length;
-  const results = new Array(total).fill(null);
-  let successCount = 0;
-  let firstError = null;
+  if (urls.length === 0) return "";
 
-  async function transcribeOne(i) {
-    try {
-      const response = await fetch(urls[i]);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch audio ${i + 1}/${total}: ${response.status}`);
-      }
-
-      const contentType = response.headers.get("content-type") || "";
-      const buffer = Buffer.from(await response.arrayBuffer());
-
-      if (buffer.byteLength > OPENAI_TRANSCRIPTION_MAX_BYTES) {
-        throw new Error(`Audio ${i + 1} exceeds transcription upload limit.`);
-      }
-
-      const { ext, mime } = resolveAudioFormat(contentType, urls[i]);
-      const file = new File([Uint8Array.from(buffer)], `audio-${String(i + 1).padStart(4, "0")}.${ext}`, { type: mime });
-      const text = await openai.audio.transcriptions.create({
-        file,
-        model: "whisper-1",
-        language: "en",
-        response_format: "text",
-      });
-
-      const normalized = text.replace(/\s+/g, " ").trim();
-      successCount++;
-      if (normalized) results[i] = normalized;
-    } catch (error) {
-      if (!firstError) firstError = error;
-      console.warn("[transcription] audio_chunk_failed", { chunkIndex: i, error });
-      results[i] = `[transcription unavailable for segment ${i + 1}]`;
+  // Fetch all chunks sequentially to avoid hammering blob storage
+  const fetched = [];
+  for (let i = 0; i < urls.length; i++) {
+    const res = await fetch(urls[i]);
+    if (!res.ok) {
+      throw new Error(`Failed to fetch audio ${i + 1}/${urls.length}: ${res.status}`);
     }
+    fetched.push({
+      buffer: Buffer.from(await res.arrayBuffer()),
+      contentType: res.headers.get("content-type") || "",
+    });
   }
 
-  for (let batch = 0; batch < total; batch += TRANSCRIPTION_CONCURRENCY) {
-    const batchEnd = Math.min(batch + TRANSCRIPTION_CONCURRENCY, total);
-    const promises = [];
-    for (let i = batch; i < batchEnd; i++) {
-      promises.push(transcribeOne(i));
+  const { ext, mime } = resolveAudioFormat(fetched[0].contentType, urls[0]);
+  const buffers = fetched.map((f) => f.buffer);
+
+  if (urls.length === 1) {
+    if (buffers[0].byteLength > OPENAI_TRANSCRIPTION_MAX_BYTES) {
+      throw new Error("Audio exceeds transcription upload limit.");
     }
-    await Promise.all(promises);
+    return transcribeBuffer(openai, buffers[0], ext, mime, 0);
   }
 
-  if (successCount === 0 && firstError) {
-    throw firstError;
+  // MediaRecorder webm: only chunk 0 contains the EBML header — subsequent chunks
+  // are raw clusters and are not valid standalone files. Concatenate before sending.
+  // Split into segments < 25 MB, each starting with buffers[0] to include the header.
+  const segments = [];
+  let group = [0];
+  let groupSize = buffers[0].byteLength;
+
+  for (let i = 1; i < buffers.length; i++) {
+    if (groupSize + buffers[i].byteLength > OPENAI_TRANSCRIPTION_MAX_BYTES) {
+      segments.push(group);
+      group = [0]; // restart each segment with the header chunk
+      groupSize = buffers[0].byteLength;
+    }
+    group.push(i);
+    groupSize += buffers[i].byteLength;
   }
+  segments.push(group);
+
+  const results = await Promise.all(
+    segments.map((indices, segIdx) => {
+      const segBuffer = Buffer.concat(indices.map((i) => buffers[i]));
+      return transcribeBuffer(openai, segBuffer, ext, mime, segIdx);
+    }),
+  );
 
   return results.filter(Boolean).join("\n\n");
+}
+
+async function transcribeBuffer(openai, buffer, ext, mime, segIndex) {
+  const file = new File(
+    [Uint8Array.from(buffer)],
+    `audio-${String(segIndex + 1).padStart(4, "0")}.${ext}`,
+    { type: mime },
+  );
+  const text = await openai.audio.transcriptions.create({
+    file,
+    model: "whisper-1",
+    language: "en",
+    response_format: "text",
+  });
+  return (text || "").replace(/\s+/g, " ").trim();
 }
 
 // ---------------------------------------------------------------------------
