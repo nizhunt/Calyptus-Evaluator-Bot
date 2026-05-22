@@ -5,6 +5,7 @@ import formidable from "formidable";
 import OpenAI from "openai";
 import { put } from "@vercel/blob";
 import { safeJsonParse } from "../../lib/evaluation-schema";
+import { prisma } from "../../lib/db";
 
 export const config = {
   api: {
@@ -15,6 +16,29 @@ export const config = {
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+const TRANSCRIPT_WAIT_TIMEOUT_MS = 45_000;
+const TRANSCRIPT_POLL_INTERVAL_MS = 1_500;
+
+function createHttpError(statusCode, message) {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  return error;
+}
+
+function getHttpStatus(error) {
+  const statusCode =
+    typeof error === "object" && error !== null && "statusCode" in error
+      ? Number(error.statusCode)
+      : 0;
+  return Number.isInteger(statusCode) && statusCode >= 400 && statusCode < 600
+    ? statusCode
+    : 500;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function normalizeField(value, fallback = "") {
   if (Array.isArray(value)) {
@@ -41,6 +65,71 @@ async function parseMultipartForm(req) {
 async function readPromptTemplate() {
   const promptPath = path.join(process.cwd(), "data", "evaluation_prompt.md");
   return fs.readFile(promptPath, "utf8");
+}
+
+async function resolveTranscriptForEvaluation(submittedTranscript, recorderId) {
+  if (submittedTranscript.trim()) {
+    return submittedTranscript;
+  }
+  if (!recorderId) {
+    return submittedTranscript;
+  }
+
+  const deadline = Date.now() + TRANSCRIPT_WAIT_TIMEOUT_MS;
+  let lastStatus = "";
+
+  while (Date.now() < deadline) {
+    let recording;
+    try {
+      recording = await prisma.recording.findUnique({
+        where: { id: recorderId },
+        select: {
+          status: true,
+          transcriptText: true,
+          errorCode: true,
+          errorMessage: true,
+        },
+      });
+    } catch (error) {
+      console.warn("[evaluate] transcript_lookup_failed", {
+        recorderId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw createHttpError(
+        409,
+        "Transcript could not be loaded for this recording. Please wait and submit again.",
+      );
+    }
+
+    if (!recording) {
+      throw createHttpError(
+        409,
+        "Transcript was not found for this recording. Please re-record before submitting.",
+      );
+    }
+
+    const storedTranscript = recording.transcriptText || "";
+    if (storedTranscript.trim()) {
+      return storedTranscript.slice(0, 200000);
+    }
+
+    lastStatus = recording.status || "";
+    if (recording.status === "error") {
+      throw createHttpError(
+        409,
+        recording.errorMessage ||
+          recording.errorCode ||
+          "Transcript generation failed. Please re-record before submitting.",
+      );
+    }
+
+    await sleep(TRANSCRIPT_POLL_INTERVAL_MS);
+  }
+
+  throw createHttpError(
+    409,
+    `Transcript is still processing${lastStatus ? ` (${lastStatus})` : ""}. Please wait and submit again.`,
+  );
 }
 
 function sanitizeCustomInstructions(raw) {
@@ -130,7 +219,6 @@ function auditScores(evaluation) {
   }
 
   result.overallScore = llmOverall;
-  result._mechanicalScore = mechanicalScore;
 
   return result;
 }
@@ -195,7 +283,7 @@ export default async function handler(req, res) {
 
     const assessmentQuestion = normalizeField(fields.assessmentQuestion).slice(0, 10000);
     const conversationContent = normalizeField(fields.conversationContent).slice(0, 100000);
-    const inhouseTranscript = normalizeField(fields.inhouseTranscript).slice(0, 200000);
+    const submittedTranscript = normalizeField(fields.inhouseTranscript).slice(0, 200000);
     const recordingUrl = normalizeField(fields.recordingUrl);
     const recordingDurationSecondsRaw = normalizeField(fields.recordingDurationSeconds);
     const recorderId = normalizeField(fields.recorderId);
@@ -206,11 +294,22 @@ export default async function handler(req, res) {
     const screenshotFiles = normalizeFiles(files.screenshots);
     const outputFiles = normalizeFiles(files.outputFile);
     allTempFiles = [...screenshotFiles, ...outputFiles];
+
+    const MAX_IMAGES = 5;
+    if (screenshotFiles.length > MAX_IMAGES) {
+      return res.status(400).json({
+        error: `Maximum ${MAX_IMAGES} images allowed per evaluation, but ${screenshotFiles.length} were provided`,
+      });
+    }
     const recordingDurationSeconds = Number(recordingDurationSecondsRaw);
     const normalizedRecordingDurationSeconds =
       Number.isFinite(recordingDurationSeconds) && recordingDurationSeconds > 0
         ? recordingDurationSeconds
         : 0;
+    const inhouseTranscript = await resolveTranscriptForEvaluation(
+      submittedTranscript,
+      recorderId,
+    );
 
     // Upload all files to Blob BEFORE the LLM call so URLs are available
     const uploadResults = await Promise.all(
@@ -270,13 +369,6 @@ export default async function handler(req, res) {
     });
 
     // Build multi-modal input: text prompt + screenshot images
-    const MAX_IMAGES = 5;
-    if (uploadedScreenshots.length > MAX_IMAGES) {
-      return res.status(400).json({
-        error: `Maximum ${MAX_IMAGES} images allowed per evaluation, but ${uploadedScreenshots.length} were provided`,
-      });
-    }
-
     const inputContent = [{ type: "input_text", text: finalPrompt }];
     for (const screenshot of uploadedScreenshots) {
       inputContent.push({
@@ -358,11 +450,11 @@ export default async function handler(req, res) {
     };
 
     const response = await openai.responses.create({
-      model: "gpt-4.1",
-      tools: [{ type: "web_search" }],
+      model: "gpt-5.5",
       instructions:
-        "You are a strict evaluator. Return valid JSON only, matching the schema in the prompt.",
+        "You are a strict evaluator. You have access to the web_search tool — use it to verify technical claims, library/API behavior, and external references when accuracy matters. Return valid JSON only, matching the schema in the prompt.",
       input: [{ role: "user", content: inputContent }],
+      tools: [{ type: "web_search" }],
       text: {
         format: {
           type: "json_schema",
@@ -371,7 +463,6 @@ export default async function handler(req, res) {
           schema: evaluationSchema,
         },
       },
-      temperature: 0.2,
     });
 
     const rawOutput = response.output_text || "{}";
@@ -404,7 +495,13 @@ export default async function handler(req, res) {
     const internalMessage = error instanceof Error ? error.message : "Unknown server error";
     console.error("[evaluate]", internalMessage);
     await appendLog("Unable to build prompt", "{}", internalMessage);
-    return res.status(500).json({ error: "Evaluation failed. Please try again." });
+    const statusCode = getHttpStatus(error);
+    return res.status(statusCode).json({
+      error:
+        statusCode === 409
+          ? internalMessage
+          : "Evaluation failed. Please try again.",
+    });
   } finally {
     // Clean up formidable temp files
     for (const file of allTempFiles) {

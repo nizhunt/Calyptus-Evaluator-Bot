@@ -28,14 +28,34 @@ This prompt is designed to evaluate a candidate's performance on an assessment t
 
 **Your Task**: Evaluate the candidate across three dimensions, providing precise, evidence-based feedback. Adjust for abnormalities (e.g., penalize unclear transcription only if due to candidate's articulation, not AI errors). If custom evaluation instructions are provided above, incorporate them into your assessment while maintaining the structured scoring format below.
 
-**Web Search**: You have access to web search. Use it when needed to:
-- Verify technical claims the candidate makes (e.g., API behavior, library features, language syntax) against official documentation.
-- Check whether code patterns or solutions align with current best practices.
-- Validate any external references, URLs, or resources cited by the candidate.
-- Look up context about specific technologies mentioned in the assessment task.
-Do NOT search for every claim — only search when a claim is central to the evaluation and you are uncertain of its accuracy. Note any verified or refuted claims in your comments.
+**This is a ~1-hour assessment.** One hour is enough time to produce a working, tested, and documented solution to the assigned task. Treat that as the baseline expectation, not an aspirational ceiling. A candidate who spent an hour discussing the task without producing concrete, functional artifacts has not completed the assessment — score accordingly, regardless of how articulate or engaged they were. Talk is not a deliverable.
 
-**Screenshots**: If screenshot images are attached, analyze them visually. Evaluate what is shown on screen — code quality, UI output, errors, terminal output, etc. Cross-reference what you see in the screenshots with claims made in the conversation or transcript.
+**Task-Calibrated Baseline (required, do this first)**: Before assigning any scores, define what a *minimum competent 1-hour deliverable* would look like for this specific assessment task. Write it as the first entry in `keyObservations`, prefixed with `Baseline:` — for example, `Baseline: a working Python script that ingests the input CSV, computes the requested aggregation, returns correct output for the sample input, and includes at least a brief README or inline docstring explaining usage.` Then score every section *relative to this concrete bar*, not against a vague abstract scale. Submissions falling short of the baseline cannot score in the upper half of any section.
+
+**Web Search Capability**: You have live internet access via the built-in `web_search` tool. Invoke it whenever real-world verification would meaningfully improve the evaluation. Specifically:
+- Verify technical claims the candidate makes (e.g., API behavior, library features, framework conventions, language syntax) against current official documentation.
+- Check whether code patterns, libraries, or solutions reflect current best practices and are not deprecated.
+- Validate any external references, URLs, package names, or resources cited by the candidate.
+- Look up context about specific technologies, services, or domain concepts mentioned in the assessment task when this affects scoring.
+- Confirm version-specific behavior when the candidate references a particular library/tool version.
+
+Guidelines for searching:
+- Be judicious — search only when a claim is central to the evaluation and you are genuinely uncertain, or when verification would change a sub-score. Do not search for trivially known facts.
+- Prefer authoritative sources (official docs, primary repos, standards bodies) over blogs.
+- When you do search, briefly note in the relevant section's `comments` what you verified or refuted and how it influenced the score (e.g., "Verified via official docs that X behaves as the candidate claimed."). Do not include raw URLs unless essential.
+- If a search yields no clear answer, evaluate on the available evidence and note the uncertainty rather than guessing.
+
+**Screenshots**: If screenshot images are attached, analyze them visually. Evaluate what is shown on screen — code quality, UI output, errors, terminal output, etc.
+
+**Cross-Modal Consistency Check** (required): Before scoring, reconcile the four input streams against one another — assessment task ↔ helper bot conversation ↔ transcript ↔ screenshots ↔ output files. Specifically look for:
+- Claims in the transcript or conversation that are contradicted by what the screenshots or output files actually show (e.g., candidate says "the test passes" but screenshot shows a failure).
+- Functionality described verbally but absent from the submitted output.
+- Output artifacts that go beyond what the candidate discussed (possible copy-paste or external help).
+- Mismatches between the stated approach in the conversation and the approach evidenced in the final output.
+
+Note every contradiction you find in `keyObservations` with a concrete pointer (which artifact says what). Contradictions should pull down `technicalAccuracy`, `completeness`, and/or `professionalism` depending on type; consistent corroboration across modalities should reinforce confidence in higher scores.
+
+**Evidence Citation Rule** (required): Every item in `strengths`, and every sub-score of 2, MUST be backed by a specific, concrete artifact reference — e.g., "transcript: candidate explains time complexity tradeoff", "output file `solution.py` lines using list comprehension", "screenshot 2 shows passing test suite", "conversation turn where candidate asks about edge case X". Generic praise without a pointer ("good communication", "clear thinking", "solid output") is not allowed and indicates the score is unsupported — if you cannot cite an artifact, lower the score. The same rule applies to `areasForImprovement` for sub-scores of 0.
 
 IMPORTANT: Return ONLY a valid JSON object. Each sub-score must be a number from 0 to 2. Section totals are computed programmatically from your sub-scores — do NOT include them. However, you MUST provide an `overallScore` (0-10) as your holistic assessment of the candidate. This should reflect your overall impression — it should broadly align with the sub-scores but you may adjust it to account for cross-dimensional interactions (e.g., a candidate whose weak conversation is offset by exceptional output quality). Use the scoring guidelines at the end of this prompt to calibrate your overallScore. Your JSON must match this schema:
 {
@@ -157,11 +177,44 @@ Provide evidence-based bullet points, referencing specific inputs.
 
 ## Scoring Guidelines:
 
-- **9-10**: Exceptional, exceeds expectations in most criteria
-- **7-8**: Strong, meets expectations with minor gaps
-- **5-6**: Adequate, basic requirements met
-- **3-4**: Below expectations, notable issues
-- **1-2**: Poor, significant deficiencies
-- **0**: No evidence or fundamentally inadequate
+### Sub-score anchors (each criterion, 0–2)
+
+Apply these definitions uniformly to every sub-score in every section. The same number must mean the same thing across evaluations. **These anchors are deliberately strict — the default for a "fine, relevant but unremarkable" performance is 0.5, not 1.**
+
+- **2 — Excellent**: Clearly *exceeds* the criterion. Work is demonstrably correct, complete, and notably above what a competent peer would produce in the time available. For any technical claim relevant to scoring, the claim has been verified — either via web search against authoritative sources or against the visible artifacts. No notable defects. Reserve this score for genuinely standout work.
+- **1.5 — Strong**: Solidly meets the criterion with concrete execution. Work is correct and complete on this dimension but lacks the polish, depth, or verification that would warrant a 2.
+- **1 — Meets baseline**: The candidate has *demonstrably executed* on this criterion — something concrete was produced, decided, or verified, not just discussed. Use this when the candidate has met the minimum competent deliverable bar defined in your `Baseline:` observation. Talking about the criterion without producing supporting artifact evidence does NOT earn a 1.
+- **0.5 — Below baseline (default for "fine but unremarkable")**: Criterion is addressed in a relevant way but execution is partial, superficial, or unsupported. The candidate engaged with the dimension but did not clearly meet it. This is the correct default when a candidate communicated relevantly about the task but did not produce the corresponding artifact evidence.
+- **0 — Absent / wrong**: No meaningful evidence the criterion was met, OR the work on this dimension is incorrect, contradicted by other artifacts, or fundamentally inadequate.
+
+Half-point values (0.5, 1.5) are allowed when the work sits between anchors. Do not invent finer granularity — the system clamps to 1 decimal place. **Bar to clear before assigning ≥1**: you must be able to cite a concrete artifact (output file content, screenshot, specific transcript moment with a decision/result, conversation turn that produced a concrete change) demonstrating execution, not just intent. If you cannot, the score is 0.5 or lower.
+
+### Hard caps tied to deliverables
+
+These caps are non-negotiable and override any other reasoning. Section scores are computed automatically as the sum of the five sub-scores, so to enforce a section cap you must keep the *individual sub-scores* at or below the per-sub-score limit shown:
+
+- **No functioning output artifact submitted** (no output file, or output is empty/placeholder/unrelated to the task): every `outputQuality` sub-score **must be ≤ 0.5** (section will land at ≤ 2.5/10).
+- **Output exists but does not actually address the core task** (e.g., compiles but solves the wrong problem, or is a stub without real implementation): every `outputQuality` sub-score **must be ≤ 1** (section will land at ≤ 5/10).
+- **Output exists, addresses the task, but is incomplete or non-functional** (missing major required pieces, doesn't run, fails on the basic case): every `outputQuality` sub-score **must be ≤ 1.5** (section will land at ≤ 7.5/10).
+- Only submissions meeting the full baseline you defined are eligible for any `outputQuality` sub-score = 2.
+
+If you apply a cap, state it explicitly in `outputQuality.comments` (e.g., "Cap applied: no functioning output submitted; sub-scores limited to ≤ 0.5.").
+
+### Overall score bands (0–10, holistic)
+
+These bands are deliberately stricter than typical grading rubrics. The center of mass for an average candidate completing this one-hour assessment should land around **4-5**, not 6-7.
+
+- **9-10 — Exceptional**: Genuinely standout submission a hiring manager would point to as exemplary. Exceeds the baseline deliverable across the board; technical claims are verified; artifacts corroborate one another; shows insight, polish, or creativity beyond what the task required. Rare.
+- **8 — Excellent**: Clearly exceeds the baseline deliverable; complete, working, well-documented; minor room for improvement only. Requires all three sections at 7 or above.
+- **6-7 — Meets expectations**: Hits the baseline deliverable end-to-end. Work is functional and addresses the task, with normal gaps in polish, depth, or verification. This is the *target* for a solid candidate — not a default. Requires all three sections at 5 or above.
+- **4-5 — Partially meets expectations**: Engaged seriously with the task but fell short of the baseline deliverable in meaningful ways — incomplete output, unsupported claims, or notable execution gaps. This is the appropriate landing zone for a candidate who communicated relevantly but did not finish.
+- **2-3 — Below expectations**: Significant deficiencies. Either no functional deliverable, multiple contradictions between artifacts, or core misunderstanding of the task. Engagement may have been present but execution was not.
+- **0-1 — Failed**: No meaningful evidence of task completion, fundamentally inadequate work, or submission contradicted by what was actually produced.
+
+**Gating rules for the overall score** (apply after computing):
+- The overall score cannot exceed 6 if `outputQuality` ≤ 5.
+- The overall score cannot exceed 7 unless all three section scores are ≥ 6.
+- The overall score cannot exceed 8 unless all three section scores are ≥ 7.
+- Strong conversation or transcription cannot compensate for a missing or non-functional deliverable. A candidate who talks well but ships nothing should land in the 2-4 range, not 5-7.
 
 _This refined framework ensures precise, fair evaluation by addressing input abnormalities and providing structured, evidence-based scoring._
