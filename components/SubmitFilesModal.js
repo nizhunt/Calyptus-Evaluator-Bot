@@ -304,12 +304,20 @@ export default function SubmitFilesModal({
                 window.
               </p>
             )}
+            {submitMode && !canSubmitEvaluation && (
+              <p
+                className="text-sm font-medium text-calyptus-body"
+                role="status"
+              >
+                Saving recording in the background...
+              </p>
+            )}
             {submitMode && canSubmitEvaluation && !isEvaluationReady && (
               <p
                 className="text-sm font-medium text-calyptus-body"
                 role="status"
               >
-                Generating transcript before submission...
+                Generating transcript in the background...
               </p>
             )}
           </div>

@@ -60,6 +60,7 @@ export default function Home() {
   const chatMessagesRef = useRef(null);
   const submitFormRef = useRef(null);
   const autoOpenedSubmitModalForUrlRef = useRef(null);
+  const hasAutoOpenedModalRef = useRef(false);
   const hasSentOpeningMessage = useRef(false);
   const activeFetchControllers = useRef(new Set());
   const router = useRouter();
@@ -170,6 +171,8 @@ export default function Home() {
       setTranscript("");
       setTranscriptionError("");
       setRecorderId(null);
+      hasAutoOpenedModalRef.current = false;
+      autoOpenedSubmitModalForUrlRef.current = null;
       if (!hasSentOpeningMessage.current) {
         hasSentOpeningMessage.current = true;
         fetchOpeningMessage();
@@ -180,6 +183,10 @@ export default function Home() {
     if (["stopping", "uploading", "transcribing"].includes(nextState)) {
       setHasCompletedRecording(true);
       setIsLoading(true);
+      if (!hasAutoOpenedModalRef.current) {
+        hasAutoOpenedModalRef.current = true;
+        setSubmitFilesModalOpen(true);
+      }
       return;
     }
 
@@ -421,21 +428,6 @@ export default function Home() {
     runEvaluationSubmit();
   };
 
-  useEffect(() => {
-    if (SHOW_LEGACY_SUBMIT_SECTION) return;
-    if (
-      !recordingUrl ||
-      !hasCompletedRecording ||
-      !hasTranscript ||
-      isLoading ||
-      loading
-    ) {
-      return;
-    }
-    if (autoOpenedSubmitModalForUrlRef.current === recordingUrl) return;
-    autoOpenedSubmitModalForUrlRef.current = recordingUrl;
-    setSubmitFilesModalOpen(true);
-  }, [recordingUrl, hasCompletedRecording, hasTranscript, isLoading, loading]);
 
   const handleTourComplete = (candidateData = {}) => {
     setShowTour(false);
@@ -918,30 +910,17 @@ export default function Home() {
             ref={submitFormRef}
             className="submit-form-section mt-6 flex flex-wrap items-center justify-center gap-3"
           >
-            {hasCompletedRecording &&
-              recordingUrl &&
-              hasTranscript &&
-              !isLoading &&
-              !loading && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setSubmitFilesModalOpen(true)}
-                >
-                  {submissionFileCount > 0
-                    ? `Edit files & submit (${submissionFileCount})`
-                    : "Open submission"}
-                </Button>
-              )}
-            {hasCompletedRecording &&
-              recordingUrl &&
-              !hasTranscript &&
-              (isLoading || transcriptionError) && (
-                <p className="text-center text-sm font-medium text-calyptus-body">
-                  {transcriptionError ||
-                    "Generating transcript before submission..."}
-                </p>
-              )}
+            {hasCompletedRecording && !loading && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setSubmitFilesModalOpen(true)}
+              >
+                {submissionFileCount > 0
+                  ? `Edit files & submit (${submissionFileCount})`
+                  : "Open submission"}
+              </Button>
+            )}
           </div>
         )}
         <SubmitFilesModal
