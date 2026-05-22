@@ -2,6 +2,8 @@ import { list } from "@vercel/blob";
 import OpenAI from "openai";
 import { prisma } from "../../../../lib/db";
 
+export const config = { maxDuration: 300 };
+
 const OPENAI_TRANSCRIPTION_MAX_BYTES = 25 * 1024 * 1024;
 
 export default async function handler(req, res) {
@@ -123,13 +125,15 @@ export default async function handler(req, res) {
       return res.status(409).json({ error: "Transcription already in progress", status: "transcribing" });
     }
 
-    enqueueTranscription(id, {
+    // Run synchronously — Vercel Lambdas freeze network after response,
+    // making background async jobs unreliable for DB writes.
+    await runTranscriptionJob(id, {
       blobUrl: resolvedBlobUrl,
       audioChunkUrls: resolvedChunkUrls,
       backupAudioUrl,
     });
 
-    return res.status(202).json({ success: true, status: "transcribing" });
+    return res.status(200).json({ success: true, status: "transcript_ready" });
   } catch (error) {
     console.error("[transcription] request_failed", { recordingId: id, error });
     return res.status(500).json({ error: "Failed to start transcription" });
@@ -137,52 +141,41 @@ export default async function handler(req, res) {
 }
 
 // ---------------------------------------------------------------------------
-// Background transcription job
+// Transcription job (runs synchronously within the request lifecycle)
 // ---------------------------------------------------------------------------
 
-function enqueueTranscription(recordingId, input) {
-  (async () => {
-    try {
-      const transcriptText = await transcribeRecording(input);
+async function runTranscriptionJob(recordingId, input) {
+  try {
+    const transcriptText = await transcribeRecording(input);
 
-      if (!transcriptText || transcriptText.trim().length < 10) {
-        console.warn("[transcription] empty_or_short_transcript", {
-          recordingId,
-          length: transcriptText ? transcriptText.trim().length : 0,
-        });
-        await prisma.recording.update({
-          where: { id: recordingId },
-          data: {
-            status: "error",
-            errorCode: "TRANSCRIPT_EMPTY",
-            errorMessage:
-              "Transcription returned empty or insufficient text.",
-          },
-        });
-        return;
-      }
-
-      await prisma.recording.update({
-        where: { id: recordingId },
-        data: {
-          status: "transcript_ready",
-          transcriptText,
-          errorCode: null,
-          errorMessage: null,
-        },
+    if (!transcriptText || transcriptText.trim().length < 10) {
+      console.warn("[transcription] empty_or_short_transcript", {
+        recordingId,
+        length: transcriptText ? transcriptText.trim().length : 0,
       });
-    } catch (error) {
-      console.error("[transcription] job_failed", { recordingId, error });
-      await prisma.recording.update({
-        where: { id: recordingId },
-        data: {
-          status: "error",
-          errorCode: getErrorCode(error),
-          errorMessage: error instanceof Error ? error.message : String(error),
-        },
+      await updateRecordingWithRetry(recordingId, {
+        status: "error",
+        errorCode: "TRANSCRIPT_EMPTY",
+        errorMessage: "Transcription returned empty or insufficient text.",
       });
+      return;
     }
-  })();
+
+    await updateRecordingWithRetry(recordingId, {
+      status: "transcript_ready",
+      transcriptText,
+      errorCode: null,
+      errorMessage: null,
+    });
+  } catch (error) {
+    console.error("[transcription] job_failed", { recordingId, error });
+    await updateRecordingWithRetry(recordingId, {
+      status: "error",
+      errorCode: getErrorCode(error),
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
 }
 
 async function transcribeRecording(input) {
@@ -359,6 +352,24 @@ function resolveAudioFormat(contentType, url) {
   }
   // Our recorder always produces webm audio
   return { ext: "webm", mime: "audio/webm" };
+}
+
+async function updateRecordingWithRetry(recordingId, data, maxAttempts = 4) {
+  let lastError;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await prisma.recording.update({ where: { id: recordingId }, data });
+      return;
+    } catch (err) {
+      lastError = err;
+      // P1001 = can't reach DB server — transient, worth retrying
+      if (err?.code !== "P1001" || attempt === maxAttempts) break;
+      await new Promise((r) => setTimeout(r, Math.min(1000 * 2 ** (attempt - 1), 8000)));
+      console.warn("[transcription] db_update_retry", { recordingId, attempt, code: err.code });
+    }
+  }
+  console.error("[transcription] db_update_failed", { recordingId, error: lastError });
+  throw lastError;
 }
 
 function getErrorCode(error) {
